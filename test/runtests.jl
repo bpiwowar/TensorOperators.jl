@@ -1,4 +1,4 @@
-using MatrixOperators
+using TensorOperators
 using Base.Test
 
 # write your own tests here
