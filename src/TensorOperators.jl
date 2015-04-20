@@ -26,6 +26,7 @@ end
 
 const RealArray = Union(Array)
 const RealMatrix = Union(Matrix)
+const RealVector = Union(Vector)
 
 matrixOf(realType) =  error("Cannot compute matrix of $realType")
 
@@ -124,23 +125,7 @@ backward(cost::L2Cost, inputs, scale=1.) = cost.gradInput = scale * (inputs[1] -
 
 # --- Code
 
-l2cost = L2Cost()
 
-x = rand(100, 100)
-z = rand(100, 5)
-m = LinearModule{CPUDouble}(100, 5)
-epsilon = 5e-5
-
-@time for i = 1:100
-    initGradient(m)
-
-    y = forward(m, x)
-    e = forward(l2cost, (y, z))
-    println("Cost = $e")
-
-    backward(m, x, backward(l2cost, (y, z)))
-    m.bias -= epsilon * m.gradBias
-    m.weight -= epsilon * m.gradWeight
-end
+include("bhsm.jl")
 
 end
