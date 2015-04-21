@@ -111,23 +111,24 @@ function reset{D<:Device, F<:Float}(self::BinaryHierarchicalSoftmax{D, F}, stdv=
 end
 
 
-function forward{D<:Device, F<:Float}(self::BinaryHierarchicalSoftmax{D, F}, inputs)
-  input, targets = inputs
+function forward{D<:Device, F<:Float}(self::BinaryHierarchicalSoftmax{D, F}, inputs::Array)
+  input::matrixOf(D,F), targets::Array{Int, 2} = inputs
 
   @assert(ndims(input) == 1 || ndims(input) == 2, "input must be vector or matrix")
   @assert(size(input, 1) == size(targets, 1), "Batch size of inputs [$(size(inputs, 1))] and targets [$(size(targets, 1))] differ")
 
-   nframe = size(input, 1)
+   nframe::Int = size(input, 1)
    if size(self.output) != (nframe, 1)
      self.output = array(D, F, nframe, 1)
    end
-   output = self.output
+
+   output::matrixOf(D,F) = self.output
 
     #  Stores the heavy computation before computing gradInput or updating gradient
-    tdepth::Int64 = 0
+    tdepth::Int = 0
     for frame = 1:nframe
-       local current::Int64 = self.parents[targets[frame]]
-       local ix::Int64 = abs(current) - self.nleaves
+       local current::Int = self.parents[targets[frame]]
+       local ix::Int = abs(current) - self.nleaves
        tdepth = tdepth + self.depth[ix] + 1
     end
 
@@ -140,12 +141,12 @@ function forward{D<:Device, F<:Float}(self::BinaryHierarchicalSoftmax{D, F}, inp
       resize!(self.updates.values, tdepth)
     end
 
-    offset::Int64 = 1
+    offset::Int = 1
 
     for frame = 1:nframe
        self.updates.offsets[frame] = offset
 
-       local current::Int64 = self.parents[targets[frame]]
+       local current::Int = self.parents[targets[frame, 1]]
        local logp::Float64 = 0
        while current != 0
           sign::Float64 = 1.
@@ -154,8 +155,8 @@ function forward{D<:Device, F<:Float}(self::BinaryHierarchicalSoftmax{D, F}, inp
              current = -current
           end
 
-          local ix::Int64 = current - self.nleaves
-          local current_p::Float64 = 1 + exp(sign * (dot(self.weight[ix], input[frame]) + self.bias[ix]))
+          local ix::Int = current - self.nleaves
+          local current_p::Float64 = 1. + exp(sign * (dot(self.weight[ix], input[frame]) + self.bias[ix]))
 
           self.updates.nodes[offset] = current
           self.updates.values[offset] = sign * (1. / current_p - 1.)
@@ -172,7 +173,7 @@ function forward{D<:Device, F<:Float}(self::BinaryHierarchicalSoftmax{D, F}, inp
 
     #  Marks the end
     self.updates.offsets[nframe+1] = offset
-    return self.output
+    return output
  end
 
  function updateGradInput{D<:Device, F<:Float}(self::BinaryHierarchicalSoftmax{D, F}, inputs, gradOutput)
@@ -288,3 +289,6 @@ forward(hs, {input, targets})
 gradOutput = fill(-1., (ninput, 1)) # We want to increase sum(o) => decrease -sum(o)
 @time backward(hs, {input, targets}, gradOutput)
 h = @time backward(hs, {input, targets}, gradOutput)
+
+
+@code_warntype forward(hs, {input, targets})

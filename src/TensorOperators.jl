@@ -13,18 +13,21 @@ abstract Device
 immutable CPUDevice <: Device end
 immutable CudaDevice <: Device end
 
-export CPUDevice, CudaDevice
+export CPUDevice
+export CudaDevice
 
 const RealArray = Union(Array)
 const RealMatrix = Union(Matrix)
 const RealVector = Union(Vector)
 
-# matrixOf(realType) =  error("Cannot compute matrix of $realType")
+arrayOf(D, F, dims::Integer) =  error("Cannot compute matrix of ($D, $F)")
+
+vectorOf(D,F) = arrayOf(D, F, 1)
+matrixOf(D,F) = arrayOf(D, F, 2)
 
 # --- CPU
 
-#matrixOf{T<:Float}() = Array{cpuType(T), 2}
-
+arrayOf{F}(::Type{CPUDevice}, ::Type{F}, dims::Integer) = Array{F, dims}
 array{F<:Float}(::Type{CPUDevice}, ::Type{F}, dims::Int64...) = Array(F, dims...)
 rand{F<:Float}(::Type{CPUDevice}, ::Type{F}, dims::Int64...) = rand(F, dims...)
 zeros{F<:Float}(::Type{CPUDevice}, ::Type{F}, dims::Int64...) = zeros(F, dims...)
