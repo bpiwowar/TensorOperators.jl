@@ -10,13 +10,14 @@ April 2015
 =#
 
 type BinaryHierarchicalSoftmaxUpdates
+  size::Int
   offsets::Array{Int}
   nodes::Array{Int}
   values::RealVector
 end
 
 # Holds the different structures
-type BinaryHierarchicalSoftmax{T<:_Real} <: Module
+type BinaryHierarchicalSoftmax{D<:Device, F<:Float} <: Module
   # List of parents, using the sign for denoting which branch
   parents::Vector{Int}
 
@@ -43,7 +44,7 @@ type BinaryHierarchicalSoftmax{T<:_Real} <: Module
     self.parents = parents
     self.nleaves = div(size(parents, 1) + 1, 2)
 
-    nbInnerNodes = size(parents, 1) - nleaves
+    nbInnerNodes = size(parents, 1) - self.nleaves
 
     @assert(sum(parents) == 0, "Tree is not balanced")
     @assert(parents[size(parents,1)] == 0, "Root is not the last node")
@@ -52,11 +53,11 @@ type BinaryHierarchicalSoftmax{T<:_Real} <: Module
     # (this is useful to store the updates)
     function compute_depth(ix::Int)
         if self.depth[ix] == -1 then
-           local pix = abs(self.parents[ix + nleaves])
+           local pix = abs(self.parents[ix + self.nleaves])
            if pix == 0 then
               self.depth[ix] = 0
            else
-              self.depth[ix] = compute_depth(pix - nleaves) + 1
+              self.depth[ix] = compute_depth(pix - self.nleaves) + 1
            end
         end
         return self.depth[ix]
@@ -70,19 +71,19 @@ type BinaryHierarchicalSoftmax{T<:_Real} <: Module
 
      # Initialize the different fields
 
-     self.weight = array(T, nbInnerNodes, inputSize)
-     self.bias = array(T, nbInnerNodes)
+     self.weight = array(D, F, nbInnerNodes, inputSize)
+     self.bias = array(D, F, nbInnerNodes)
 
-     self.gradWeight = array(T, nbInnerNodes, inputSize)
-     self.gradBias = array(T, nbInnerNodes)
+     self.gradWeight = array(D, F, nbInnerNodes, inputSize)
+     self.gradBias = array(D, F, nbInnerNodes)
 
      #  No gradient for the targets
-     self.gradInput = { array(T), 0 }
+     self.gradInput = { array(D, F), 0 }
 
-     self.output = array(T, 0, 0)
+     self.output = array(D, F, 0, 0)
 
      #  Stores updates
-     self.updates = BinaryHierarchicalSoftmaxUpdates(Array(Int, 0), Array(Int, 0), array(T, 0))
+     self.updates = BinaryHierarchicalSoftmaxUpdates(0, Array(Int, 0), Array(Int, 0), array(D, F, 0))
 
      reset(self)
 
@@ -92,7 +93,7 @@ type BinaryHierarchicalSoftmax{T<:_Real} <: Module
 end
 
 # Resets
-function reset{T<:_Real}(self::BinaryHierarchicalSoftmax{T}, stdv=0)
+function reset{D<:Device, F<:Float}(self::BinaryHierarchicalSoftmax{D, F}, stdv=0)
   if stdv != 0 then
     stdv = stdv * sqrt(3)
   else
@@ -110,47 +111,50 @@ function reset{T<:_Real}(self::BinaryHierarchicalSoftmax{T}, stdv=0)
 end
 
 
-function forward(self::BinaryHierarchicalSoftmax{CPUDouble}, inputs)
+function forward{D<:Device, F<:Float}(self::BinaryHierarchicalSoftmax{D, F}, inputs)
   input, targets = inputs
-
-  T= CPUDouble
 
   @assert(ndims(input) == 1 || ndims(input) == 2, "input must be vector or matrix")
   @assert(size(input, 1) == size(targets, 1), "Batch size of inputs [$(size(inputs, 1))] and targets [$(size(targets, 1))] differ")
 
    nframe = size(input, 1)
    if size(self.output) != (nframe, 1)
-     self.output = array(T, nframe, 1)
+     self.output = array(D, F, nframe, 1)
    end
    output = self.output
 
     #  Stores the heavy computation before computing gradInput or updating gradient
-    tdepth::Int = 0
+    tdepth::Int64 = 0
     for frame = 1:nframe
-       local current::Int = self.parents[targets[frame]]
-       local ix::Int = abs(current) - self.nleaves
+       local current::Int64 = self.parents[targets[frame]]
+       local ix::Int64 = abs(current) - self.nleaves
        tdepth = tdepth + self.depth[ix] + 1
     end
 
-    resize!(self.updates.offsets, nframe + 1)
-    resize!(self.updates.nodes, tdepth)
-    resize!(self.updates.values, tdepth)
+    self.updates.size = nframe
+    if size(self.updates.offsets, 1) < nframe + 1 then
+      resize!(self.updates.offsets, nframe + 1)
+    end
+    if size(self.updates.nodes, 1) < tdepth
+      resize!(self.updates.nodes, tdepth)
+      resize!(self.updates.values, tdepth)
+    end
 
-    local offset::Int = 1
+    offset::Int64 = 1
 
     for frame = 1:nframe
        self.updates.offsets[frame] = offset
 
-       local current::Int = self.parents[targets[frame]]
+       local current::Int64 = self.parents[targets[frame]]
        local logp::Float64 = 0
        while current != 0
-          sign = 1.
+          sign::Float64 = 1.
           if current <= 0 then
              sign = -1.
              current = -current
           end
 
-          local ix::Int = current - self.nleaves
+          local ix::Int64 = current - self.nleaves
           local current_p::Float64 = 1 + exp(sign * (dot(self.weight[ix], input[frame]) + self.bias[ix]))
 
           self.updates.nodes[offset] = current
@@ -171,20 +175,20 @@ function forward(self::BinaryHierarchicalSoftmax{CPUDouble}, inputs)
     return self.output
  end
 
- function updateGradInput{T<:Real}(self::BinaryHierarchicalSoftmax{T}, inputs, gradOutput)
+ function updateGradInput{D<:Device, F<:Float}(self::BinaryHierarchicalSoftmax{D, F}, inputs, gradOutput)
     input, targets = inputs
 
     if self.gradInput != 0 then
        local gradInput0 = self.gradInput[1]
        if size(gradInput0) != size(input) then
-         gradInput0 = self.gradInput[1] = zeros(T, size(input))
+         gradInput0 = self.gradInput[1] = zeros(D, F, size(input)...)
        end
 
-       for frame = 1:(size(self.updates.offsets, 1) - 1)
+       for frame = 1:self.updates.size
           for j = self.updates.offsets[frame]:(self.updates.offsets[frame+1] - 1)
              local current = self.updates.nodes[j]
              local ix = current - self.nleaves
-             gradInput0[frame] += gradOutput[frame] * self.updates.values[j], self.weight[ix]
+             gradInput0[frame] += gradOutput[frame] * self.updates.values[j] * self.weight[ix]
           end
        end
 
@@ -193,14 +197,12 @@ function forward(self::BinaryHierarchicalSoftmax{CPUDouble}, inputs)
  end
 
 
-function accGradParameters{T<:Real}(self::BinaryHierarchicalSoftmax{T}, inputs, gradOutput, scale::Float64=1.)
+function accGradParameters{D<:Device, F<:Float}(self::BinaryHierarchicalSoftmax{D, F}, inputs, gradOutput, scale::Float64=1.)
   input, targets = inputs
 
-  @assert(ndims(input) == 2, "Input must be a matrix")
+  @assert(ndims(input) == 2, "Input must be a matrix (ndims=$(ndims(input)))")
 
-  nframe = input:size(1)
-
-  for frame = 1:(self.updates.offsets:size(1) - 1)
+  for frame = 1:self.updates.size
     for j = self.updates.offsets[frame]:(self.updates.offsets[frame+1] - 1)
       local current = self.updates.nodes[j]
       local ix = current - self.nleaves
@@ -212,6 +214,9 @@ function accGradParameters{T<:Real}(self::BinaryHierarchicalSoftmax{T}, inputs, 
   end
  end
 
+
+
+####################### TEST
 
 
 
@@ -253,26 +258,33 @@ function accGradParameters{T<:Real}(self::BinaryHierarchicalSoftmax{T}, inputs, 
 
  #######
 
-
-nleaves = 100000
-parents = Array(Int, 2 * nleaves - 1)
-construct_tree(parents, 1, nleaves)
+function generateBHS(nleaves, input_size)
+  parents = Array(Int, 2 * nleaves - 1)
+  construct_tree(parents, 1, nleaves)
+  hs = BinaryHierarchicalSoftmax{CPUDevice, Float64}(input_size, parents)
+end
 
 input_size = 100
-hs = BinaryHierarchicalSoftmax{CPUDouble}(input_size, parents)
-
-words = reshape([i for i=1:nleaves], nleaves, 1)
+hs = generateBHS(100000, input_size)
+words = reshape([i for i=1:hs.nleaves], hs.nleaves, 1)
 x = randn(1, input_size)
-input = repmat(x, nleaves)
+input = repmat(x, hs.nleaves)
 output = forward(hs, {input, words})
-println(sum(exp(output)))
+@assert abs(sum(exp(output)) - 1) / hs.nleaves <= 1e-16
 
 # -- Timeit
 
 ninput = 10000
 input = randn(ninput, input_size)
-targets = rand(1:nleaves, ninput, 1)
-println("Size of input = $(size(input)), # leaves = $nleaves")
+targets = rand(1:hs.nleaves, ninput, 1)
+println("Size of input = $(size(input)), # leaves = $(hs.nleaves)")
 for i=1:10
-   t = @time forward(hs, {input, targets})
+  @time forward(hs, {input, targets})
 end
+
+# Backward
+
+forward(hs, {input, targets})
+gradOutput = fill(-1., (ninput, 1)) # We want to increase sum(o) => decrease -sum(o)
+@time backward(hs, {input, targets}, gradOutput)
+h = @time backward(hs, {input, targets}, gradOutput)

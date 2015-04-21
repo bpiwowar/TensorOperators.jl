@@ -1,15 +1,13 @@
 using TensorOperators
 using Base.Test
 
-# write your own tests here
 @test 1 == 1
 
-
-l2cost = L2Cost()
+l2cost = TensorOperators.L2Cost()
 
 x = rand(100, 100)
 z = rand(100, 5)
-m = LinearModule{CPUDouble}(100, 5)
+m = TensorOperators.LinearModule{CPUDouble}(100, 5)
 epsilon = 5e-5
 
 @time for i = 1:100
