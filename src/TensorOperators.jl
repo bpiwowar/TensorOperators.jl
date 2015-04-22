@@ -27,7 +27,11 @@ matrixOf(D,F) = arrayOf(D, F, 2)
 
 # --- CPU
 
-arrayOf{F}(::Type{CPUDevice}, ::Type{F}, dims::Integer) = Array{F, dims}
+# Why should I need this???
+matrixOf{F}(::Type{CPUDevice}, ::Type{F}) = Array{F, 2}
+vectorOf{F}(::Type{CPUDevice}, ::Type{F}) = Array{F, 1}
+
+arrayOf{F}(::Type{CPUDevice}, ::Type{F}, dims::Int64) = Array{F, dims}
 array{F<:Float}(::Type{CPUDevice}, ::Type{F}, dims::Int64...) = Array(F, dims...)
 rand{F<:Float}(::Type{CPUDevice}, ::Type{F}, dims::Int64...) = rand(F, dims...)
 zeros{F<:Float}(::Type{CPUDevice}, ::Type{F}, dims::Int64...) = zeros(F, dims...)
@@ -44,6 +48,16 @@ abstract Module
 function backward(theModule::Module, input, gradOutput, scale::Float64=1.)
     accGradParameters(theModule, input, gradOutput, scale)
     return updateGradInput(theModule, input, gradOutput)
+end
+
+
+initGradient(m::Array) = fill!(m, 0.)
+
+# Generic function for initializing the gradient
+function initGradient(m::Module)
+  for field = fieldnames(m.gradient)
+    initGradient(getfield(m.gradient, field))
+  end
 end
 
 

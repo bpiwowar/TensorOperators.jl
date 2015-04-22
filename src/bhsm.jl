@@ -16,6 +16,11 @@ type BinaryHierarchicalSoftmaxUpdates
   values::RealVector
 end
 
+type BinaryHierarchicalSoftmaxParameters
+  weight::RealMatrix
+  bias::RealVector
+end
+
 # Holds the different structures
 type BinaryHierarchicalSoftmax{D<:Device, F<:Float} <: Module
   # List of parents, using the sign for denoting which branch
@@ -27,19 +32,17 @@ type BinaryHierarchicalSoftmax{D<:Device, F<:Float} <: Module
   # The depth of each leave
   depth::Vector{Int}
 
-  weight::RealMatrix
-  bias::RealVector
+  parameters::BinaryHierarchicalSoftmaxParameters
+  gradient::BinaryHierarchicalSoftmaxParameters
 
   output::RealMatrix
   gradInput::RealVector
-
-  gradWeight::RealMatrix
-  gradBias::RealVector
 
   updates::BinaryHierarchicalSoftmaxUpdates
 
   function BinaryHierarchicalSoftmax(inputSize::Int, parents::Vector{Int})
     self = new()
+
 
     self.parents = parents
     self.nleaves = div(size(parents, 1) + 1, 2)
@@ -71,11 +74,15 @@ type BinaryHierarchicalSoftmax{D<:Device, F<:Float} <: Module
 
      # Initialize the different fields
 
-     self.weight = array(D, F, nbInnerNodes, inputSize)
-     self.bias = array(D, F, nbInnerNodes)
+     self.parameters = BinaryHierarchicalSoftmaxParameters(
+      array(D, F, nbInnerNodes, inputSize),
+      array(D, F, nbInnerNodes)
+     )
 
-     self.gradWeight = array(D, F, nbInnerNodes, inputSize)
-     self.gradBias = array(D, F, nbInnerNodes)
+     self.gradient = BinaryHierarchicalSoftmaxParameters(
+      array(D, F, nbInnerNodes, inputSize),
+      array(D, F, nbInnerNodes)
+     )
 
      #  No gradient for the targets
      self.gradInput = { array(D, F), 0 }
@@ -97,7 +104,7 @@ function reset{D<:Device, F<:Float}(self::BinaryHierarchicalSoftmax{D, F}, stdv=
   if stdv != 0 then
     stdv = stdv * sqrt(3)
   else
-    stdv = 1. / sqrt(size(self.weight, 2))
+    stdv = 1. / sqrt(size(self.parameters.weight, 2))
   end
 
   function r!(x)
@@ -106,8 +113,8 @@ function reset{D<:Device, F<:Float}(self::BinaryHierarchicalSoftmax{D, F}, stdv=
     broadcast!(*, x, x, stdv)
   end
 
-  r!(self.weight)
-  r!(self.bias)
+  r!(self.parameters.weight)
+  r!(self.parameters.bias)
 end
 
 
@@ -156,7 +163,7 @@ function forward{D<:Device, F<:Float}(self::BinaryHierarchicalSoftmax{D, F}, inp
           end
 
           local ix::Int = current - self.nleaves
-          local current_p::Float64 = 1. + exp(sign * (dot(self.weight[ix], input[frame]) + self.bias[ix]))
+          local current_p::Float64 = 1. + exp(sign * (dot(self.parameters.weight[ix], input[frame]) + self.parameters.bias[ix]))
 
           self.updates.nodes[offset] = current
           self.updates.values[offset] = sign * (1. / current_p - 1.)
@@ -189,7 +196,7 @@ function forward{D<:Device, F<:Float}(self::BinaryHierarchicalSoftmax{D, F}, inp
           for j = self.updates.offsets[frame]:(self.updates.offsets[frame+1] - 1)
              local current = self.updates.nodes[j]
              local ix = current - self.nleaves
-             gradInput0[frame] += gradOutput[frame] * self.updates.values[j] * self.weight[ix]
+             gradInput0[frame] += gradOutput[frame] * self.updates.values[j] * self.parameters.weight[ix]
           end
        end
 
@@ -209,8 +216,8 @@ function accGradParameters{D<:Device, F<:Float}(self::BinaryHierarchicalSoftmax{
       local ix = current - self.nleaves
       local c = scale * self.updates.values[j] * gradOutput[frame]
 
-      self.gradWeight[ix] += c * input[frame]
-      self.gradBias[ix] += c
+      self.gradient.weight[ix] += c * input[frame]
+      self.gradient.bias[ix] += c
     end
   end
  end
@@ -285,10 +292,17 @@ end
 
 # Backward
 
-forward(hs, {input, targets})
 gradOutput = fill(-1., (ninput, 1)) # We want to increase sum(o) => decrease -sum(o)
-@time backward(hs, {input, targets}, gradOutput)
-h = @time backward(hs, {input, targets}, gradOutput)
-
+epsilon = 1e-3
+#
+# println(typeof(hs.gradient.weight))
+# @time for i = 1:10
+#   initGradient(hs)
+#   forward(hs, {input, targets})
+#   backward(hs, {input, targets}, gradOutput)
+#   hs.parameters.weight -= epsilon * hs.gradient.weight
+#   hs.parameters.bias -= epsilon * hs.gradient.bias
+#   println("Cost = $(sum(hs.output))")
+# end
 
 @code_warntype forward(hs, {input, targets})
