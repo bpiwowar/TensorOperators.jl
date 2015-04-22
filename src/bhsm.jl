@@ -85,7 +85,7 @@ type BinaryHierarchicalSoftmax{D<:Device, F<:Float} <: Module
      )
 
      #  No gradient for the targets
-     self.gradInput = { array(D, F), 0 }
+     self.gradInput = Any[ array(D, F), 0 ]
 
      self.output = array(D, F, 0, 0)
 
@@ -289,11 +289,11 @@ function generateBHS(nleaves, input_size)
 end
 
 input_size = 100
-hs = generateBHS(100000, input_size)
+hs = generateBHS(200000, input_size)
 words = reshape([i for i=1:hs.nleaves], hs.nleaves, 1)
 x = randn(1, input_size)
 input = repmat(x, hs.nleaves)
-output = forward(hs, {input, words})
+output = forward(hs, Any[input, words])
 @assert abs(sum(exp(output)) - 1) / hs.nleaves <= 1e-16
 
 # -- Timeit
@@ -306,33 +306,21 @@ for i=1:10
   @time forward(hs, {input, targets})
 end
 
-
-# Backward
+using Base.LinAlg.BLAS
 
 gradOutput = fill(-1., (ninput, 1)) # We want to increase sum(o) => decrease -sum(o)
 epsilon = 1e-3
 
-@time for i = 1:10
+inputs = Any[input, targets]
+@time for i = 1:100
   initGradient(hs)
-  forward(hs, {input, targets})
-  backward(hs, {input, targets}, gradOutput)
-  # println(sum(hs.gradient.weight), " / ", sum(hs.parameters.weight))
-  # println(sum(hs.gradient.bias))
-  hs.parameters.weight -= epsilon * hs.gradient.weight
-  hs.parameters.bias -= epsilon * hs.gradient.bias
+  forward(hs, inputs)
+  backward(hs, inputs, gradOutput)
+  axpy!(-epsilon, hs.gradient.weight, hs.parameters.weight)
+  axpy!(-epsilon, hs.gradient.bias, hs.parameters.bias)
   println("Cost = $(sum(hs.output))")
 end
 
 
-@time for i = 1:10
-  initGradient(hs)
-  forward(hs, {input, targets})
-  backward(hs, {input, targets}, gradOutput)
-  # println(sum(hs.gradient.weight), " / ", sum(hs.parameters.weight))
-  # println(sum(hs.gradient.bias))
-  hs.parameters.weight -= epsilon * hs.gradient.weight
-  hs.parameters.bias -= epsilon * hs.gradient.bias
-  println("Cost = $(sum(hs.output))")
-end
 
 #@code_warntype forward(hs, {input, targets})
