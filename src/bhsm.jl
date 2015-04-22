@@ -11,9 +11,9 @@ April 2015
 
 type BinaryHierarchicalSoftmaxUpdates
   size::Int
-  offsets::Array{Int}
-  nodes::Array{Int}
-  values::RealVector
+  offsets::Vector{Int}
+  nodes::Vector{Int}
+  values
 end
 
 type BinaryHierarchicalSoftmaxParameters
@@ -148,8 +148,16 @@ function forward{D<:Device, F<:Float}(self::BinaryHierarchicalSoftmax{D, F}, inp
       resize!(self.updates.values, tdepth)
     end
 
-    offset::Int = 1
+    # Create type stable values
+    local offset::Int = 1
+    local values::vectorOf(D,F) = self.updates.values
+    local weight::matrixOf(D,F) = self.parameters.weight
+    local bias::vectorOf(D,F) = self.parameters.bias
+    local current_p::Float64
 
+    self.parameters.weight::matrixOf(D,F)
+
+    # ---
     for frame = 1:nframe
        self.updates.offsets[frame] = offset
 
@@ -163,10 +171,10 @@ function forward{D<:Device, F<:Float}(self::BinaryHierarchicalSoftmax{D, F}, inp
           end
 
           local ix::Int = current - self.nleaves
-          local current_p::Float64 = 1. + exp(sign * (dot(self.parameters.weight[ix], input[frame]) + self.parameters.bias[ix]))
+          current_p = 1. + exp(sign * (dot(weight[ix], input[frame]) + bias[ix]))
 
           self.updates.nodes[offset] = current
-          self.updates.values[offset] = sign * (1. / current_p - 1.)
+          values[offset] = sign * (1. / current_p - 1.)
 
           logp = logp - log(current_p)
           current = self.parents[current]
@@ -187,16 +195,20 @@ function forward{D<:Device, F<:Float}(self::BinaryHierarchicalSoftmax{D, F}, inp
     input, targets = inputs
 
     if self.gradInput != 0 then
-       local gradInput0 = self.gradInput[1]
-       if size(gradInput0) != size(input) then
-         gradInput0 = self.gradInput[1] = zeros(D, F, size(input)...)
+       local _gradInput0 = self.gradInput[1]
+       if size(_gradInput0) != size(input) then
+         _gradInput0 = self.gradInput[1] = zeros(D, F, size(input)...)
        end
+       gradInput0::matrixOf(D,F) = _gradInput0
+
+       values::vectorOf(D,F) = self.updates.values
+       weight::matrixOf(D,F) = self.parameters.weight
 
        for frame = 1:self.updates.size
           for j = self.updates.offsets[frame]:(self.updates.offsets[frame+1] - 1)
              local current = self.updates.nodes[j]
              local ix = current - self.nleaves
-             gradInput0[frame] += gradOutput[frame] * self.updates.values[j] * self.parameters.weight[ix]
+             gradInput0[frame] += gradOutput[frame] * values[j] * weight[ix]
           end
        end
 
@@ -206,18 +218,22 @@ function forward{D<:Device, F<:Float}(self::BinaryHierarchicalSoftmax{D, F}, inp
 
 
 function accGradParameters{D<:Device, F<:Float}(self::BinaryHierarchicalSoftmax{D, F}, inputs, gradOutput, scale::Float64=1.)
-  input, targets = inputs
+  input::matrixOf(D,F), targets = inputs
 
   @assert(ndims(input) == 2, "Input must be a matrix (ndims=$(ndims(input)))")
+
+  values::vectorOf(D,F) = self.updates.values
+  gradWeight::matrixOf(D,F) = self.gradient.weight
+  gradBias::vectorOf(D,F) = self.gradient.bias
 
   for frame = 1:self.updates.size
     for j = self.updates.offsets[frame]:(self.updates.offsets[frame+1] - 1)
       local current = self.updates.nodes[j]
       local ix = current - self.nleaves
-      local c = scale * self.updates.values[j] * gradOutput[frame]
+      local c = scale * values[j] * gradOutput[frame]
 
-      self.gradient.weight[ix] += c * input[frame]
-      self.gradient.bias[ix] += c
+      gradWeight[ix] += c * input[frame]
+      gradBias[ix] += c
     end
   end
  end
@@ -290,19 +306,33 @@ for i=1:10
   @time forward(hs, {input, targets})
 end
 
+
 # Backward
 
 gradOutput = fill(-1., (ninput, 1)) # We want to increase sum(o) => decrease -sum(o)
 epsilon = 1e-3
-#
-# println(typeof(hs.gradient.weight))
-# @time for i = 1:10
-#   initGradient(hs)
-#   forward(hs, {input, targets})
-#   backward(hs, {input, targets}, gradOutput)
-#   hs.parameters.weight -= epsilon * hs.gradient.weight
-#   hs.parameters.bias -= epsilon * hs.gradient.bias
-#   println("Cost = $(sum(hs.output))")
-# end
 
-@code_warntype forward(hs, {input, targets})
+@time for i = 1:10
+  initGradient(hs)
+  forward(hs, {input, targets})
+  backward(hs, {input, targets}, gradOutput)
+  # println(sum(hs.gradient.weight), " / ", sum(hs.parameters.weight))
+  # println(sum(hs.gradient.bias))
+  hs.parameters.weight -= epsilon * hs.gradient.weight
+  hs.parameters.bias -= epsilon * hs.gradient.bias
+  println("Cost = $(sum(hs.output))")
+end
+
+
+@time for i = 1:10
+  initGradient(hs)
+  forward(hs, {input, targets})
+  backward(hs, {input, targets}, gradOutput)
+  # println(sum(hs.gradient.weight), " / ", sum(hs.parameters.weight))
+  # println(sum(hs.gradient.bias))
+  hs.parameters.weight -= epsilon * hs.gradient.weight
+  hs.parameters.bias -= epsilon * hs.gradient.bias
+  println("Cost = $(sum(hs.output))")
+end
+
+#@code_warntype forward(hs, {input, targets})
