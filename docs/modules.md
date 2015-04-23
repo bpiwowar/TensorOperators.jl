@@ -1,0 +1,15 @@
+# Common functions
+
+## Initializing the gradient
+
+The generic method `initGradient` is used to initialize the
+
+
+# Modules
+
+- [Containers](containers.md) allow to combine the different modules (e.g. a sequence of modules to build a neural network)
+- [Linear modules](linear.md) compute a linear function of their inputs. This include convolution, etc.
+- [Transfer functions](transfer.md) transform each input with a given function
+- [Classification](classification.md) are used to classify the output in a given number of categories
+
+

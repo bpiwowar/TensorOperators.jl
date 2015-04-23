@@ -2,15 +2,20 @@ site_name: Tensor Operators
 repo_url: https://github.com/bpiwowar/TensorOperators.jl
 repo_name: GitHub
 site_author: Benjamin Piwowarski
+site_description: TensorOperators - Building Blocks for Neural Networks
 
-site_description: TensorOperators Building Blocks for Neural Networks
+theme: journal
+
 pages:
 - [index.md, Home]
+- [modules.md, Modules, Introduction]
 - [containers.md, Modules, Containers]
-- [modules.md, Modules, Generic]
+- [linear.md, Modules, Linear]
 - [transfer.md, Modules, Transfer]
-- [probabilities.md, Modules, Probabilities]
 - [classification.md, Modules, Classification]
 - [cost.md, Cost]
 - [optimization.md, Optimization]
-theme: readthedocs
+
+markdown_extensions:
+    fenced_code:
+    meta:
