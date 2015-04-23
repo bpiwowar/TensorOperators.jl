@@ -16,11 +16,6 @@ type BinaryHierarchicalSoftmaxUpdates
   values
 end
 
-type BinaryHierarchicalSoftmaxParameters
-  weight::RealMatrix
-  bias::RealVector
-end
-
 # Holds the different structures
 type BinaryHierarchicalSoftmax{D<:Device, F<:Float} <: Module
   # List of parents, using the sign for denoting which branch
@@ -32,8 +27,8 @@ type BinaryHierarchicalSoftmax{D<:Device, F<:Float} <: Module
   # The depth of each leave
   depth::Vector{Int}
 
-  parameters::BinaryHierarchicalSoftmaxParameters
-  gradient::BinaryHierarchicalSoftmaxParameters
+  weight::MatrixParameters{D,F}
+  bias::VectorParameters{D,F}
 
   output::RealMatrix
   gradInput::RealVector
@@ -73,16 +68,8 @@ type BinaryHierarchicalSoftmax{D<:Device, F<:Float} <: Module
 
 
      # Initialize the different fields
-
-     self.parameters = BinaryHierarchicalSoftmaxParameters(
-      array(D, F, nbInnerNodes, inputSize),
-      array(D, F, nbInnerNodes)
-     )
-
-     self.gradient = BinaryHierarchicalSoftmaxParameters(
-      array(D, F, nbInnerNodes, inputSize),
-      array(D, F, nbInnerNodes)
-     )
+     self.weight = MatrixParameters{D,F}(nbInnerNodes, inputSize)
+     self.bias = VectorParameters{D,F}(nbInnerNodes)
 
      #  No gradient for the targets
      self.gradInput = Any[ array(D, F), 0 ]
@@ -104,7 +91,7 @@ function reset{D<:Device, F<:Float}(self::BinaryHierarchicalSoftmax{D, F}, stdv=
   if stdv != 0 then
     stdv = stdv * sqrt(3)
   else
-    stdv = 1. / sqrt(size(self.parameters.weight, 2))
+    stdv = 1. / sqrt(size(self.weight.values, 2))
   end
 
   function r!(x)
@@ -113,8 +100,8 @@ function reset{D<:Device, F<:Float}(self::BinaryHierarchicalSoftmax{D, F}, stdv=
     broadcast!(*, x, x, stdv)
   end
 
-  r!(self.parameters.weight)
-  r!(self.parameters.bias)
+  r!(self.weight.values)
+  r!(self.bias.values)
 end
 
 
@@ -151,11 +138,9 @@ function forward{D<:Device, F<:Float}(self::BinaryHierarchicalSoftmax{D, F}, inp
     # Create type stable values
     local offset::Int = 1
     local values::vectorOf(D,F) = self.updates.values
-    local weight::matrixOf(D,F) = self.parameters.weight
-    local bias::vectorOf(D,F) = self.parameters.bias
+    local weight::matrixOf(D,F) = self.weight.values
+    local bias::vectorOf(D,F) = self.bias.values
     local current_p::Float64
-
-    self.parameters.weight::matrixOf(D,F)
 
     # ---
     for frame = 1:nframe
@@ -171,7 +156,7 @@ function forward{D<:Device, F<:Float}(self::BinaryHierarchicalSoftmax{D, F}, inp
           end
 
           local ix::Int = current - self.nleaves
-          current_p = 1. + exp(sign * (dot(weight[ix], input[frame]) + bias[ix]))
+          current_p = 1. + exp(sign * (Base.dot(weight[ix], input[frame]) + bias[ix]))
 
           self.updates.nodes[offset] = current
           values[offset] = sign * (1. / current_p - 1.)
@@ -202,7 +187,7 @@ function forward{D<:Device, F<:Float}(self::BinaryHierarchicalSoftmax{D, F}, inp
        gradInput0::matrixOf(D,F) = _gradInput0
 
        values::vectorOf(D,F) = self.updates.values
-       weight::matrixOf(D,F) = self.parameters.weight
+       weight::matrixOf(D,F) = self.weight.values
 
        for frame = 1:self.updates.size
           for j = self.updates.offsets[frame]:(self.updates.offsets[frame+1] - 1)
@@ -223,8 +208,8 @@ function accGradParameters{D<:Device, F<:Float}(self::BinaryHierarchicalSoftmax{
   @assert(ndims(input) == 2, "Input must be a matrix (ndims=$(ndims(input)))")
 
   values::vectorOf(D,F) = self.updates.values
-  gradWeight::matrixOf(D,F) = self.gradient.weight
-  gradBias::vectorOf(D,F) = self.gradient.bias
+  gradWeight::matrixOf(D,F) = self.weight.gradient
+  gradBias::vectorOf(D,F) = self.bias.gradient
 
   for frame = 1:self.updates.size
     for j = self.updates.offsets[frame]:(self.updates.offsets[frame+1] - 1)
@@ -290,6 +275,8 @@ end
 
 input_size = 100
 hs = generateBHS(200000, input_size)
+initGradient(hs)
+
 words = reshape([i for i=1:hs.nleaves], hs.nleaves, 1)
 x = randn(1, input_size)
 input = repmat(x, hs.nleaves)
@@ -303,21 +290,19 @@ input = randn(ninput, input_size)
 targets = rand(1:hs.nleaves, ninput, 1)
 println("Size of input = $(size(input)), # leaves = $(hs.nleaves)")
 for i=1:10
-  @time forward(hs, {input, targets})
+  @time forward(hs, Any[input, targets])
 end
 
-using Base.LinAlg.BLAS
 
 gradOutput = fill(-1., (ninput, 1)) # We want to increase sum(o) => decrease -sum(o)
-epsilon = 1e-3
+sgd = StochasticGradient(1e-3)
 
 inputs = Any[input, targets]
-@time for i = 1:100
+@time for i = 1:10
   initGradient(hs)
   forward(hs, inputs)
   backward(hs, inputs, gradOutput)
-  axpy!(-epsilon, hs.gradient.weight, hs.parameters.weight)
-  axpy!(-epsilon, hs.gradient.bias, hs.parameters.bias)
+  optimize(sgd, hs)
   println("Cost = $(sum(hs.output))")
 end
 

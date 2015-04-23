@@ -4,9 +4,10 @@
 
 =#
 
+
 # Parameters
 type LinearModuleParameters{F<:Float, D<:Device}
-  weight::RealMatrix
+  values::RealMatrix
   bias::RealVector
 
   LinearModuleParameters(inputSize::Int64, outputSize::Int64) = new(array(T, outputSize, inputSize), array(T, 1, outputSize))
@@ -16,9 +17,6 @@ end
 type LinearModule{F<:Float, D<:Device} <: Module
   # The parameters
   parameters::LinearModuleParameters{F,D}
-
-  # The gradient of the parameters
-  gradient::LinearModuleParameters{F,D}
 
   # State
   output::RealMatrix
