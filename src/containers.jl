@@ -1,17 +1,37 @@
 
 # --- Sequence
 
-type SequenceOperator
+type SequenceContainer
     list::Array{Operator}
 
-    SequenceOperator() = new([])
+    SequenceContainer() = new([])
 end
 
-function push!(sequence::SequenceOperator, a_module::Operator)
+function push!(sequence::SequenceContainer, a_module::Operator)
     push!(sequence.list, a_module)
 end
 
-function forward(sequence::SequenceOperator, input)
+function forward(sequence::SequenceContainer, input)
+    for a_module = sequence.list
+        forward(a_module, input)
+    end
+end
+
+
+# --- Parallel
+
+type ParallelContainer
+    list::Array{Operator}
+
+    ParallelContainer() = new([])
+end
+
+function push!(sequence::ParallelContainer, a_module::Operator)
+    push!(sequence.list, a_module)
+end
+
+function forward(sequence::ParallelContainer, input::Any[])
+    @assert length(input) ==
     for a_module = sequence.list
         forward(a_module, input)
     end
