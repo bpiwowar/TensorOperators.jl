@@ -1,3 +1,18 @@
+
+# module optimization
+
+export optimize
+
+abstract Optimizer
+
+@doc doc"Modifies "
+function optimize!(s::Optimizer, m::Operator)
+  for v in parameters(m)
+    optimize!(s, v)
+  end
+end
+
+# --- Stochastic Gradient
 #= A plain implementation of SGD
 ARGS:
 - `opfunc` : a function that takes a single input (X), the point
@@ -17,23 +32,15 @@ ARGS:
 
 =#
 
-# module optimization
-
-export optimize
-
 type StochasticGradient
     learningRate::Float64
 end
 
-function optimize(s::StochasticGradient, p::ArrayParameters)
+function optimize!(s::StochasticGradient, p::ArrayParameters)
     axpy!(-s.learningRate, p.gradient, p.values)
 end
 
-function optimize(s::StochasticGradient, m::Operator)
-  for v in getParameters(m)
-    optimize(s, v)
-  end
-end
+
 
 export StochasticGradient
 

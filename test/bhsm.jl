@@ -32,20 +32,20 @@
 
  #######
 
-function generateBHS(nleaves, input_size)
+function generate_bhs(nleaves, input_size)
   parents = Array(Int, 2 * nleaves - 1)
   construct_tree(parents, 1, nleaves)
   hs = BinaryHierarchicalSoftmax{CPUDevice, Float64}(input_size, parents)
 end
 
 input_size = 100
-hs = generateBHS(200000, input_size)
-initGradient(hs)
+hs = generate_bhs(200000, input_size)
+init_gradient!(hs)
 
 words = reshape([i for i=1:hs.nleaves], hs.nleaves, 1)
 x = randn(1, input_size)
 input = repmat(x, hs.nleaves)
-output = forward(hs, Any[input, words])
+output = forward!(hs, Any[input, words])
 @assert abs(sum(exp(output)) - 1) / hs.nleaves <= 1e-16
 
 # -- Timeit
@@ -55,7 +55,7 @@ input = randn(ninput, input_size)
 targets = rand(1:hs.nleaves, ninput, 1)
 println("Size of input = $(size(input)), # leaves = $(hs.nleaves)")
 for i=1:10
-  @time forward(hs, Any[input, targets])
+  @time forward!(hs, Any[input, targets])
 end
 
 
@@ -64,10 +64,10 @@ sgd = StochasticGradient(1e-3)
 
 inputs = Any[input, targets]
 @time for i = 1:10
-  initGradient(hs)
-  forward(hs, inputs)
-  backward(hs, inputs, gradOutput)
-  optimize(sgd, hs)
+  init_gradient!(hs)
+  forward!(hs, inputs)
+  backward!(hs, inputs, gradOutput)
+  optimize!(sgd, hs)
   println("Cost = $(sum(hs.output))")
 end
 

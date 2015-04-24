@@ -179,7 +179,7 @@ function forward{D<:Device, F<:Float}(self::BinaryHierarchicalSoftmax{D, F}, inp
     return output
  end
 
- function updateGradInput{D<:Device, F<:Float}(self::BinaryHierarchicalSoftmax{D, F}, inputs, gradOutput)
+ function compute_inputgradient!{D<:Device, F<:Float}(self::BinaryHierarchicalSoftmax{D, F}, inputs, gradOutput)
     input, targets = inputs
 
     if self.gradInput != 0 then
@@ -205,7 +205,7 @@ function forward{D<:Device, F<:Float}(self::BinaryHierarchicalSoftmax{D, F}, inp
  end
 
 
-function accGradParameters{D<:Device, F<:Float}(self::BinaryHierarchicalSoftmax{D, F}, inputs, gradOutput, scale::Float64=1.)
+function update_gradient!{D<:Device, F<:Float}(self::BinaryHierarchicalSoftmax{D, F}, inputs, gradOutput, scale::Float64=1.)
   input::matrixOf(D,F), targets = inputs
 
   @assert(ndims(input) == 2, "Input must be a matrix (ndims=$(ndims(input)))")

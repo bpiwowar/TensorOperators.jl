@@ -11,20 +11,20 @@ z = rand(23, 5)
 m = TensorOperators.LinearOperator{CPUDevice, Float64}(100, 5)
 epsilon = 5e-5
 
-init(m)
+init!(m)
 sgd = StochasticGradient(1e-3)
 
 @time for i = 1:100
-    initGradient(m)
+    init_gradient!(m)
 
     # Forward
-    y = forward(m, x)
-    e = forward(l2cost, (y, z))
+    y = forward!(m, x)
+    e = forward!(l2cost, (y, z))
     println("Cost = $e")
 
     # Backward
-    backward(m, x, backward(l2cost, (y, z)))
-    optimize(sgd, m)
+    backward!(m, x, backward!(l2cost, (y, z)))
+    optimize!(sgd, m)
 end
 
 include("bhsm.jl")

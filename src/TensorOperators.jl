@@ -7,7 +7,6 @@ import Base.rand
 import Base.zeros
 import Base.push!
 
-abstract Operator
 
 # --- Some useful macros
 
@@ -61,6 +60,39 @@ immutable CudaDevice <: Device end
 
 export CudaDevice
 
+
+# --- Operators ----
+
+abstract Operator
+
+@doc doc"Computes the gradient wrt the parameters and the input. Returns the gradient wrt to the inputs" ->
+function backward!(m::Operator, input, gradOutput, scale::Float64=1.)
+    update_gradient!(m, input, gradOutput, scale)
+    return compute_inputgradient!(m, input, gradOutput)
+end
+
+
+
+# Generic function for initializing the gradient
+function init_gradient!(m::Operator)
+    for v in parameters(m)
+        init_gradient!(v)
+    end
+end
+
+
+function init!(m::Operator)
+    for v in parameters(m)
+        init!(v)
+    end
+end
+
+
+export init_gradient!, forward!, backward!, init!
+
+
+
+
 # --- Parameters
 
 abstract Parameters
@@ -78,9 +110,10 @@ end
 typealias VectorParameters{D<:Device, F<:Float} ArrayParameters{D, F, 1}
 typealias MatrixParameters{D<:Device, F<:Float} ArrayParameters{D, F, 2}
 
-const parametersMap = Dict{Any, Any}()
+# Caches the parameter fields for each type
+const parametersMap = Dict{Type, Symbol[]}()
 
-function getParameters{T<:Operator}(t::Type{T})
+function parameters{T<:Operator}(t::Type{T})
     function compute()
         p = Any[]
         for field = fieldnames(t)
@@ -94,45 +127,18 @@ function getParameters{T<:Operator}(t::Type{T})
     return get!(compute, parametersMap, t)
 end
 
-function getParameters(m::Operator)
+function parameters(m::Operator)
     function _it()
-        for field in getParameters(typeof(m))
+        for field in parameters(typeof(m))
             produce(m.(field))
         end
     end
     Task(_it)
-
 end
 
-# --- Operators ----
+init!(p::ArrayParameters) = randn!(p.values)
+init_gradient!(p::ArrayParameters) = fill!(p.gradient, 0.)
 
-
-@doc doc"Computes the gradient wrt the parameters and the input. Returns the gradient wrt to the inputs" ->
-function backward(m::Operator, input, gradOutput, scale::Float64=1.)
-    accGradParameters(m, input, gradOutput, scale)
-    return updateGradInput(m, input, gradOutput)
-end
-
-
-initGradient(p::ArrayParameters) = fill!(p.gradient, 0.)
-
-# Generic function for initializing the gradient
-function initGradient(m::Operator)
-    for v in getParameters(m)
-        initGradient(v)
-    end
-end
-
-
-init(p::ArrayParameters) = randn!(p.values)
-function init(m::Operator)
-    for v in getParameters(m)
-        init(v)
-    end
-end
-
-
-export initGradient, forward, backward, init
 
 # --- Includes
 

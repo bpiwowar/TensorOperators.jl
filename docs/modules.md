@@ -2,7 +2,7 @@
 
 ## Initializing the gradient
 
-The generic method `initGradient` is used to initialize the
+The generic method `init_gradient!` is used to initialize the
 
 
 # Operators

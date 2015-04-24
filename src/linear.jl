@@ -31,7 +31,7 @@ function forward{D<:Device, F<:Float}(linear::LinearOperator{D,F}, input::RealMa
   broadcast!(+, linear.output, linear.output, linear.bias.values)
 end
 
-function updateGradInput{D<:Device, F<:Float}(linear::LinearOperator{D,F}, input::RealMatrix, gradOutput::RealMatrix)
+function compute_inputgradient!{D<:Device, F<:Float}(linear::LinearOperator{D,F}, input::RealMatrix, gradOutput::RealMatrix)
   gradInputSize = (size(gradOutput,1), size(linear.weight.values, 2))
   if size(linear.gradInput) != gradInputSize
     linear.gradInput = array(D,F, gradInputSize...)
@@ -39,7 +39,7 @@ function updateGradInput{D<:Device, F<:Float}(linear::LinearOperator{D,F}, input
   gemm!('N', 'N', 1., gradOutput, linear.weight.values, 0., linear.gradInput)
 end
 
-function accGradParameters{D<:Device, F<:Float}(linear::LinearOperator{D,F}, input::RealMatrix, gradOutput::RealMatrix, scale::F=1.)
+function update_gradient!{D<:Device, F<:Float}(linear::LinearOperator{D,F}, input::RealMatrix, gradOutput::RealMatrix, scale::F=1.)
   gemm!('T', 'N', scale, input, gradOutput, 0., linear.weight.gradient)
   axpy!(scale, sum(gradOutput, 1), linear.bias.gradient)
 end
