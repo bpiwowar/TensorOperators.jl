@@ -7,31 +7,48 @@ import Base.rand
 import Base.zeros
 import Base.push!
 
+abstract Operator
+
+# --- Some useful macros
+
+macro stabilize(ex)
+    @assert ex.head == :(=)
+    @assert length(ex.args) == 2
+    @assert ex.args[1].head == :(::)
+
+    value = ex.args[2]
+    valueType = ex.args[1].args[2]
+
+    quote
+        if isa($value, $valueType)
+            $ex
+        else
+            Base.error("Cannot stabilize type to $valueType for $value")
+        end
+    end
+
+end
+
+
 # --- Devices and types
 
 typealias Float FloatingPoint
 
 abstract Device
-immutable CPUDevice <: Device end
-immutable CudaDevice <: Device end
-
-export CPUDevice
-export CudaDevice
 
 const RealArray = Union(Array)
 const RealMatrix = Union(Matrix)
 const RealVector = Union(Vector)
 
-arrayOf(D, F, dims::Integer) =  error("Cannot compute matrix of ($D, $F)")
+arrayOf(D, F, ::Integer) =  error("Cannot compute matrix of ($D, $F)")
 
 vectorOf(D,F) = arrayOf(D, F, 1)
 matrixOf(D,F) = arrayOf(D, F, 2)
 
 # --- CPU
 
-# Why should I need this???
-matrixOf{F}(::Type{CPUDevice}, ::Type{F}) = Array{F, 2}
-vectorOf{F}(::Type{CPUDevice}, ::Type{F}) = Array{F, 1}
+immutable CPUDevice <: Device end
+export CPUDevice
 
 arrayOf{F}(::Type{CPUDevice}, ::Type{F}, dims::Int64) = Array{F, dims}
 array{F<:Float}(::Type{CPUDevice}, ::Type{F}, dims::Int64...) = Array(F, dims...)
@@ -40,6 +57,9 @@ zeros{F<:Float}(::Type{CPUDevice}, ::Type{F}, dims::Int64...) = zeros(F, dims...
 
 # --- CUDA
 
+immutable CudaDevice <: Device end
+
+export CudaDevice
 
 # --- Parameters
 
@@ -50,7 +70,7 @@ type ArrayParameters{D<:Device, F<:Float, N} <: Parameters
   gradient::RealArray
 
   function ArrayParameters(dims::Int64...)
-    @assert length(dims) == N
+    @assert length(dims) == N::Int
     new(array(D,F,dims...), array(D,F,dims...))
   end
 end
@@ -60,57 +80,69 @@ typealias MatrixParameters{D<:Device, F<:Float} ArrayParameters{D, F, 2}
 
 const parametersMap = Dict{Any, Any}()
 
-
-# Should be m::Module
-# getParameters(m) = error("Type $(super(typeof(m))) not handled")
-function getParameters(m)
+function getParameters{T<:Operator}(t::Type{T})
     function compute()
         p = Any[]
-        for field = fieldnames(m)
-            v = getfield(m, field)
-            if typeof(v) <: Parameters
-                push!(p, v)
+        for field = fieldnames(t)
+            if fieldtype(t, field) <: Parameters
+                push!(p, field)
             end
         end
         p
     end
 
-    return get!(compute, parametersMap, m)
+    return get!(compute, parametersMap, t)
 end
 
-# --- Modules ----
+function getParameters(m::Operator)
+    function _it()
+        for field in getParameters(typeof(m))
+            produce(m.(field))
+        end
+    end
+    Task(_it)
 
-abstract Module
+end
+
+# --- Operators ----
+
 
 @doc doc"Computes the gradient wrt the parameters and the input. Returns the gradient wrt to the inputs" ->
-function backward(m::Module, input, gradOutput, scale::Float64=1.)
+function backward(m::Operator, input, gradOutput, scale::Float64=1.)
     accGradParameters(m, input, gradOutput, scale)
     return updateGradInput(m, input, gradOutput)
 end
 
 
-initGradient(m::Array) = fill!(m, 0.)
-
 initGradient(p::ArrayParameters) = fill!(p.gradient, 0.)
 
 # Generic function for initializing the gradient
-function initGradient(m::Module)
-    x = getParameters(m)
-    for v in x
+function initGradient(m::Operator)
+    for v in getParameters(m)
         initGradient(v)
     end
 end
 
 
-# --- Include modules
+init(p::ArrayParameters) = randn!(p.values)
+function init(m::Operator)
+    for v in getParameters(m)
+        init(v)
+    end
+end
+
+
+export initGradient, forward, backward, init
+
+# --- Includes
 
 # Optimization
 include("optimization.jl")
 
-# Include the containers
+# Container modules
 include("containers.jl")
 
-# Module
+# Operators
 include("linear.jl")
 include("bhsm.jl")
 

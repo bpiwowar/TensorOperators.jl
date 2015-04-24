@@ -1,6 +1,6 @@
 # --- L2 Cost
 
-type L2Cost <: Module
+type L2Cost <: Operator
     output
     gradInput
     L2Cost() = new()

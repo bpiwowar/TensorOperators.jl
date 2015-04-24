@@ -8,11 +8,11 @@ theme: journal
 
 pages:
 - [index.md, Home]
-- [modules.md, Modules, Introduction]
-- [containers.md, Modules, Containers]
-- [linear.md, Modules, Linear]
-- [transfer.md, Modules, Transfer]
-- [classification.md, Modules, Classification]
+- [modules.md, Operators, Introduction]
+- [containers.md, Operators, Containers]
+- [linear.md, Operators, Linear]
+- [transfer.md, Operators, Transfer]
+- [classification.md, Operators, Classification]
 - [cost.md, Cost]
 - [optimization.md, Optimization]
 

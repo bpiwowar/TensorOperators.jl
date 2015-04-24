@@ -19,6 +19,8 @@ ARGS:
 
 # module optimization
 
+export optimize
+
 type StochasticGradient
     learningRate::Float64
 end
@@ -27,10 +29,12 @@ function optimize(s::StochasticGradient, p::ArrayParameters)
     axpy!(-s.learningRate, p.gradient, p.values)
 end
 
-function optimize(s::StochasticGradient, m::Module)
+function optimize(s::StochasticGradient, m::Operator)
   for v in getParameters(m)
     optimize(s, v)
   end
 end
+
+export StochasticGradient
 
 # end
