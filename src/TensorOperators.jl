@@ -97,13 +97,15 @@ export init_gradient!, forward!, backward!, init!
 
 abstract Parameters
 
+@doc doc"Operator parameters - contains the values, the gradient and optimization specific information"
 type ArrayParameters{D<:Device, F<:Float, N} <: Parameters
   values::RealArray
   gradient::RealArray
+  optimization_state::Nullable{Any}
 
   function ArrayParameters(dims::Int64...)
     @assert length(dims) == N::Int
-    new(array(D,F,dims...), array(D,F,dims...))
+    new(array(D,F,dims...), array(D,F,dims...), Nullable())
   end
 end
 
@@ -111,7 +113,7 @@ typealias VectorParameters{D<:Device, F<:Float} ArrayParameters{D, F, 1}
 typealias MatrixParameters{D<:Device, F<:Float} ArrayParameters{D, F, 2}
 
 # Caches the parameter fields for each type
-const parametersMap = Dict{Type, Symbol[]}()
+const parametersMap = Dict{Type, Array{Symbol}}()
 
 function parameters{T<:Operator}(t::Type{T})
     function compute()
@@ -153,6 +155,7 @@ include("linear.jl")
 include("bhsm.jl")
 
 # Transfer functions
+include("transfer.jl")
 
 # Costs
 include("cost.jl")

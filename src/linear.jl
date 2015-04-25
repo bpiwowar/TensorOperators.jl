@@ -11,7 +11,7 @@ type LinearOperator{D<:Device, F<:Float} <: Operator
 
   # State
   output::RealMatrix
-  gradInput::RealMatrix
+  grad_input::RealMatrix
 
   # @doc doc"Initialize a linear module with the input and output size" ->
   function LinearOperator(inputSize::Int64, outputSize::Int64)
@@ -20,7 +20,7 @@ type LinearOperator{D<:Device, F<:Float} <: Operator
 end
 
 
-function forward{D<:Device, F<:Float}(linear::LinearOperator{D,F}, input::RealMatrix)
+function forward!{D<:Device, F<:Float}(linear::LinearOperator{D,F}, input::RealMatrix)
   # TODO Build a macro for this
   outputSize = (size(input,1), size(linear.weight.values, 2))
   if size(linear.output) != outputSize
@@ -32,11 +32,11 @@ function forward{D<:Device, F<:Float}(linear::LinearOperator{D,F}, input::RealMa
 end
 
 function compute_inputgradient!{D<:Device, F<:Float}(linear::LinearOperator{D,F}, input::RealMatrix, gradOutput::RealMatrix)
-  gradInputSize = (size(gradOutput,1), size(linear.weight.values, 2))
-  if size(linear.gradInput) != gradInputSize
-    linear.gradInput = array(D,F, gradInputSize...)
+  grad_inputSize = (size(gradOutput,1), size(linear.weight.values, 2))
+  if size(linear.grad_input) != grad_inputSize
+    linear.grad_input = array(D,F, grad_inputSize...)
   end
-  gemm!('N', 'N', 1., gradOutput, linear.weight.values, 0., linear.gradInput)
+  gemm!('N', 'N', 1., gradOutput, linear.weight.values, 0., linear.grad_input)
 end
 
 function update_gradient!{D<:Device, F<:Float}(linear::LinearOperator{D,F}, input::RealMatrix, gradOutput::RealMatrix, scale::F=1.)

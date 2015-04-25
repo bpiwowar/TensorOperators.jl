@@ -31,7 +31,7 @@ type BinaryHierarchicalSoftmax{D<:Device, F<:Float} <: Operator
   bias::VectorParameters{D,F}
 
   output::RealMatrix
-  gradInput::RealVector
+  grad_input::RealVector
 
   updates::BinaryHierarchicalSoftmaxUpdates
 
@@ -72,7 +72,7 @@ type BinaryHierarchicalSoftmax{D<:Device, F<:Float} <: Operator
      self.bias = VectorParameters{D,F}(nbInnerNodes)
 
      #  No gradient for the targets
-     self.gradInput = Any[ array(D, F), 0 ]
+     self.grad_input = Any[ array(D, F), 0 ]
 
      self.output = array(D, F, 0, 0)
 
@@ -108,7 +108,7 @@ function reset{D<:Device, F<:Float}(self::BinaryHierarchicalSoftmax{D, F}, stdv=
 end
 
 
-function forward{D<:Device, F<:Float}(self::BinaryHierarchicalSoftmax{D, F}, inputs::Array)
+function forward!{D<:Device, F<:Float}(self::BinaryHierarchicalSoftmax{D, F}, inputs::Array)
   input::matrixOf(D,F), targets::Array{Int, 2} = inputs
 
   @assert(ndims(input) == 1 || ndims(input) == 2, "input must be vector or matrix")
@@ -121,7 +121,7 @@ function forward{D<:Device, F<:Float}(self::BinaryHierarchicalSoftmax{D, F}, inp
 
    output::matrixOf(D,F) = self.output
 
-    #  Stores the heavy computation before computing gradInput or updating gradient
+    #  Stores the heavy computation before computing grad_input or updating gradient
     tdepth::Int = 0
     for frame = 1:nframe
        local current::Int = self.parents[targets[frame]]
@@ -182,12 +182,12 @@ function forward{D<:Device, F<:Float}(self::BinaryHierarchicalSoftmax{D, F}, inp
  function compute_inputgradient!{D<:Device, F<:Float}(self::BinaryHierarchicalSoftmax{D, F}, inputs, gradOutput)
     input, targets = inputs
 
-    if self.gradInput != 0 then
-       local _gradInput0 = self.gradInput[1]
-       if size(_gradInput0) != size(input) then
-         _gradInput0 = self.gradInput[1] = zeros(D, F, size(input)...)
+    if self.grad_input != 0 then
+       local _grad_input0 = self.grad_input[1]
+       if size(_grad_input0) != size(input) then
+         _grad_input0 = self.grad_input[1] = zeros(D, F, size(input)...)
        end
-       gradInput0::matrixOf(D,F) = _gradInput0
+       grad_input0::matrixOf(D,F) = _grad_input0
 
        values::vectorOf(D,F) = self.updates.values
        weight::matrixOf(D,F) = self.weight.values
@@ -196,16 +196,16 @@ function forward{D<:Device, F<:Float}(self::BinaryHierarchicalSoftmax{D, F}, inp
           for j = self.updates.offsets[frame]:(self.updates.offsets[frame+1] - 1)
              local current = self.updates.nodes[j]
              local ix = current - self.nleaves
-             gradInput0[frame] += gradOutput[frame] * values[j] * weight[ix]
+             grad_input0[frame] += gradOutput[frame] * values[j] * weight[ix]
           end
        end
 
-       return self.gradInput
+       return self.grad_input
     end
  end
 
 
-function update_gradient!{D<:Device, F<:Float}(self::BinaryHierarchicalSoftmax{D, F}, inputs, gradOutput, scale::Float64=1.)
+function update_gradient!{D<:Device, F<:Float}(self::BinaryHierarchicalSoftmax{D, F}, inputs, gradOutput, scale::F=1.)
   input::matrixOf(D,F), targets = inputs
 
   @assert(ndims(input) == 2, "Input must be a matrix (ndims=$(ndims(input)))")

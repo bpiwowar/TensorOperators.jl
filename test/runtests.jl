@@ -12,7 +12,9 @@ m = TensorOperators.LinearOperator{CPUDevice, Float64}(100, 5)
 epsilon = 5e-5
 
 init!(m)
-sgd = StochasticGradient(1e-3)
+# optimizer = StochasticGradient(1e-3)
+optimizer = RProp(1e-3)
+println(typeof(optimizer))
 
 @time for i = 1:100
     init_gradient!(m)
@@ -24,7 +26,7 @@ sgd = StochasticGradient(1e-3)
 
     # Backward
     backward!(m, x, backward!(l2cost, (y, z)))
-    optimize!(sgd, m)
+    optimize!(optimizer, m)
 end
 
 include("bhsm.jl")
