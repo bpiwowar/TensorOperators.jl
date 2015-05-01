@@ -108,8 +108,8 @@ function reset{D<:Device, F<:Float}(self::BinaryHierarchicalSoftmax{D, F}, stdv=
 end
 
 
-function forward!{D<:Device, F<:Float}(self::BinaryHierarchicalSoftmax{D, F}, inputs::Array)
-  input::matrixOf(D,F), targets::Array{Int, 2} = inputs
+function forward!{F<:Float}(self::BinaryHierarchicalSoftmax{CPUDevice, F}, inputs::Array)
+  input::M, targets::Array{Int, 2} = inputs
 
   @assert(ndims(input) == 1 || ndims(input) == 2, "input must be vector or matrix")
   @assert(size(input, 1) == size(targets, 1), "Batch size of inputs [$(size(inputs, 1))] and targets [$(size(targets, 1))] differ")
@@ -179,7 +179,7 @@ function forward!{D<:Device, F<:Float}(self::BinaryHierarchicalSoftmax{D, F}, in
     return output
  end
 
- function compute_inputgradient!{D<:Device, F<:Float}(self::BinaryHierarchicalSoftmax{D, F}, inputs, gradOutput)
+ function compute_inputgradient!{F<:Float}(self::BinaryHierarchicalSoftmax{CPUDevice, F}, inputs, gradOutput)
     input, targets = inputs
 
     if self.grad_input != 0 then

@@ -21,11 +21,11 @@ end
 
 
 function forward!{D<:Device, F<:Float}(linear::LinearOperator{D,F}, input::RealMatrix)
-  # TODO Build a macro for this
-  outputSize = (size(input,1), size(linear.weight.values, 2))
-  if size(linear.output) != outputSize
-    linear.output = array(D,F, outputSize...)
-  end
+  ensuresize!(linear.output, size(input,1), size(linear.weight.values, 2))
+  # outputSize = (size(input,1), size(linear.weight.values, 2))
+  # if size(linear.output) != outputSize
+  #   linear.output = array(D,F, outputSize...)
+  # end
 
   gemm!('N', 'N', 1., input, linear.weight.values, 0., linear.output)
   broadcast!(+, linear.output, linear.output, linear.bias.values)

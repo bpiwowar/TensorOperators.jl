@@ -141,6 +141,14 @@ end
 init!(p::ArrayParameters) = randn!(p.values)
 init_gradient!(p::ArrayParameters) = fill!(p.gradient, 0.)
 
+# --- Useful methods
+
+@doc doc"Ensure that the size of the of the array is at least dims
+
+The inner storage might be preserved
+"
+function ensuresize!{D}(m::DenseArray{D}, dims::UInt...)
+end
 
 # --- Includes
 
@@ -151,7 +159,8 @@ include("optimization.jl")
 include("containers.jl")
 
 # Operators
-include("linear.jl")
+include("base.jl")
+# include("convolution.jl")
 include("bhsm.jl")
 
 # Transfer functions
