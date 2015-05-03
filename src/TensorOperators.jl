@@ -101,7 +101,7 @@ abstract Parameters
 type ArrayParameters{D<:Device, F<:Float, N} <: Parameters
   values::RealArray
   gradient::RealArray
-  optimization_state::Nullable{Any}
+  optimization_state::Nullable{Any} # Used by an optimization method to store any parameter related information
 
   function ArrayParameters(dims::Int64...)
     @assert length(dims) == N::Int
