@@ -109,7 +109,8 @@ end
 
 
 function forward!{F<:Float}(self::BinaryHierarchicalSoftmax{CPUDevice, F}, inputs::Array)
-  input::M, targets::Array{Int, 2} = inputs
+  const D = CPUDevice
+  input::matrixOf(D, F), targets::Array{Int, 2} = inputs
 
   @assert(ndims(input) == 1 || ndims(input) == 2, "input must be vector or matrix")
   @assert(size(input, 1) == size(targets, 1), "Batch size of inputs [$(size(inputs, 1))] and targets [$(size(targets, 1))] differ")
@@ -139,11 +140,11 @@ function forward!{F<:Float}(self::BinaryHierarchicalSoftmax{CPUDevice, F}, input
     end
 
     # Create type stable values
-    local offset::Int = 1
-    local values::vectorOf(D,F) = self.updates.values
-    local weight::matrixOf(D,F) = self.weight.values
-    local bias::vectorOf(D,F) = self.bias.values
-    local current_p::Float64
+    offset::Int = 1
+    @stabilize values::vectorOf(D,F) = self.updates.values
+    @stabilize weight::matrixOf(D,F) = self.weight.values
+    @stabilize bias::vectorOf(D,F) = self.bias.values
+    current_p::F = zero(F)
 
     # ---
     for frame = 1:nframe

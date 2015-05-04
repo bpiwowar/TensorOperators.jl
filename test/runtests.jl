@@ -4,7 +4,8 @@ using Base.Test
 
 # @test 1 == 1
 
-l2cost = TensorOperators.L2Cost()
+model = Sequence()
+l2cost = L2Cost()
 
 x = rand(23, 100)
 z = rand(23, 5)

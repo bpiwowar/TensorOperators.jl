@@ -1,14 +1,19 @@
 
 # module optimization
+# TODO:
+# (1) make a wrapper for Optim package
 
-export optimize!
+export optimize!, StochasticGradient, RProp
+
 
 abstract Optimizer
 
-@doc doc"Modifies "
+@doc doc"Loop over parameters and call the optimizer for each parameter set with non null gradient"
 function optimize!(s::Optimizer, m::Operator)
   for v in parameters(m)
-    optimize!(s, v)
+    if !isnull(v.gradient)
+        optimize!(s, v)
+    end
   end
 end
 
@@ -38,7 +43,7 @@ type StochasticGradient <: Optimizer
 
     # weithDecay::Float64
     # momentum::Float64
-    
+
     # @doc doc"dampening for momentum" ->
     # dampening::Float64
 
@@ -50,17 +55,23 @@ end
 
 function optimize!(s::StochasticGradient, p::ArrayParameters)
     # TODO : Implement momentum
-    axpy!(-s.learningRate, p.gradient, p.values)
+    axpy!(-s.learningRate, get(p.gradient), p.values)
 end
 
 
+
+
+#
+# RProp optimizer
+#
+
 @doc doc"RProp optimizer
-- `state.stepsize`    : initial step size, common to all components
-- `state.etaplus`     : multiplicative increase factor, > 1 (default 1.2)
-- `state.etaminus`    : multiplicative decrease factor, < 1 (default 0.5)
-- `state.stepsizemax` : maximum stepsize allowed (default 50)
-- `state.stepsizemin` : minimum stepsize allowed (default 1e-6)
-- `state.niter`       : number of iterations (default 1)    
+- stepsize    : initial step size, common to all components
+- etaplus     : multiplicative increase factor, > 1 (default 1.2)
+- etaminus    : multiplicative decrease factor, < 1 (default 0.5)
+- stepsizemax : maximum stepsize allowed (default 50)
+- stepsizemin : minimum stepsize allowed (default 1e-6)
+- niter       : number of iterations (default 1)
 "
 immutable RProp <: Optimizer
     @doc "Initial step size"
@@ -92,7 +103,7 @@ type RPropState
     stepsize
 
     @doc doc"11 = zero, 01 = negative, 00 = positive, 11 = unassigned"
-    sign::BitArray{2}   
+    sign::BitArray{2}
 
     function RPropState(l::Int, stepsize::Float64)
         self = new()
@@ -109,33 +120,31 @@ const RProp_NEGATIVE = bitpack([false, true])
 const RProp_ZERO = bitpack([true, true])
 
 function optimize!(s::RProp, p::ArrayParameters)
-    # init temp storage
+    # initialize auxiliary storage
     if isnull(p.optimization_state)
         p.optimization_state = Nullable(RPropState(length(p.values), s.stepsize))
     end
 
     state = get(p.optimization_state)::RPropState
+    gradient = get(p.gradient)
 
-    for i in eachindex(p.gradient)
+    @inbounds for i in eachindex(gradient)
         # Compute the new step size
-        sign = p.gradient[i] > 0 ? RProp_POSITIVE : (p.gradient[i] < 0 ? RProp_NEGATIVE : RProp_ZERO)
+        sign = gradient[i] > 0 ? RProp_POSITIVE : (gradient[i] < 0 ? RProp_NEGATIVE : RProp_ZERO)
 
-        if sign != RProp_ZERO 
+        if sign != RProp_ZERO
             if sign == state.sign[i]
                 state.stepsize[i] = min(state.stepsize[i] * s.etaplus, s.stepsizemax)
             else
                 state.stepsize[i] = max(state.stepsize[i] * s.etaminus, s.stepsizemin)
-            end            
+            end
         end
 
         # Update weight
-        p.values[i] -= state.stepsize[i] * p.gradient[i]
+        p.values[i] -= state.stepsize[i] * gradient[i]
     end
 
-    println(sum(state.stepsize) / length(p.gradient))
+    println(sum(state.stepsize) / length(gradient))
 
 end
 
-export StochasticGradient, RProp
-
-# end

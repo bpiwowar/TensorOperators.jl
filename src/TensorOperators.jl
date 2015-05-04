@@ -76,7 +76,9 @@ end
 # Generic function for initializing the gradient
 function init_gradient!(m::Operator)
     for v in parameters(m)
-        init_gradient!(v)
+        if !isnull(v.gradient)
+            init_gradient!(v)
+        end
     end
 end
 
@@ -100,7 +102,10 @@ abstract Parameters
 @doc doc"Operator parameters - contains the values, the gradient and optimization specific information"
 type ArrayParameters{D<:Device, F<:Float, N} <: Parameters
   values::RealArray
-  gradient::RealArray
+
+  @doc doc"Gradient, or null if the gradien d qt should not be computed for this set of parameters"
+  gradient::Nullable{RealArray}
+
   optimization_state::Nullable{Any} # Used by an optimization method to store any parameter related information
 
   function ArrayParameters(dims::Int64...)
@@ -139,7 +144,7 @@ function parameters(m::Operator)
 end
 
 init!(p::ArrayParameters) = randn!(p.values)
-init_gradient!(p::ArrayParameters) = fill!(p.gradient, 0.)
+init_gradient!(p::ArrayParameters) = fill!(get(p.gradient), 0.)
 
 # --- Useful methods
 

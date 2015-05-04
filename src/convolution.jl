@@ -12,13 +12,13 @@ type TemporalConvolution{D<:Device, F<:Float} <: Operator
   dW::UInt
 
   @doc "The convolution matrix"
-  weight::RealMatrix
+  weight::MatrixParameters
 
   @doc "Real vector"
-  bias::RealVector
+  bias::MatrixVector
 
   @doc doc"Used for padding"
-  padding::RealMatrix
+  padding::MatrixParameters
 end
 
 
@@ -35,10 +35,14 @@ padding An input matrix used for padding. Must have input_framesize rows
 function TemporalConvolution{D<:Device, F<:Float}(input_framesize, output_framesize, kW, dW::UInt=1, padding=Nullable{RealMatrix})
   self = new()
 
-  @assert isnull(padding) || size(padding, 1) == input_framesize
+  @assert(isnull(padding) || size(padding, 1) == input_framesize, "Padding should be null or have the same number of rows than the input")
   if isnull(padding)
-    padding = array(D, F, input_framesize, 0)
+    self.padding = new MatrixParameters{D,F}(array(D, F, input_framesize, 0), array(D, F, input_framesize, 0))
+  else
+    self.padding = new MatrixParameters{D,F}(array(D, F, input_framesize, 0), array(D, F, input_framesize, size(padding, 0)))
   end
+
+  @assert(size(padding, 2) < kW, "Kernel width should be greater than the padding size")
 
   self.input_framesize = input_framesize
   self.output_framesize = output_framesize
@@ -47,7 +51,6 @@ function TemporalConvolution{D<:Device, F<:Float}(input_framesize, output_frames
 
   self.weight = MatrixParameters{D,F}(output_framesize, input_framesize * kW)
   self.bias = VectorParameters{D, F}(output_framesize)
-  self.padding = padding
 
   reset!(self)
   self
@@ -66,12 +69,17 @@ end
 
 
 function forward!{D<:Device,F<:Float}(m::TemporalConvolution, input::DenseArray{F, 2})
-  
+
   # Prepare
   nInputFrame = size(input, 1)
-  nOutputFrame = div(nInputFrame - kW + size(m.padding, 2), dW) + 1
+  paddingsize = size(m.padding, 2)
+  nOutputFrame = div(nInputFrame - kW + paddingsize, dW) + 1
   output = m.output
   ensuresize!(output, nOutputFrame, outputFrameSize)
+
+  # Type stability
+  @stabilize padding::matrixOf(D,F) = m.padding.values
+  @stabilize weight::matrixOf(D, F) = m.weight.values
 
   # Copy bias first
   for k = 1:nOutputFrame
@@ -79,25 +87,26 @@ function forward!{D<:Device,F<:Float}(m::TemporalConvolution, input::DenseArray{
   end
 
   # Compute the convolution
-  pos::Int = 0
+  pos::Int = -paddingsize # Position in the input
   for k = 1:nOutputFrame
-    nFrame = div(nInputFrame - k * dW - kW, inputFrameStride) + 1;
-    nOutputFrame -= nFrame
-    outputWindow = unsafe_view(output, :, k)
+    outputview = unsafe_view(output, :, k)
 
+    # Deals with the padding
     inputwidth::Int = kW
-    if pos < size(padding, 2)
-      d = size(padding, 2) - pos
-      inputWidth -= size(padding, 2) - pos
-      gemm!('N', 'T', 1, inputWindow, unsave_view(weight, :, 1:d), 1, outputWindow)
-
+    d::Int = 0
+    if pos < 0
+      d = paddingsize - pos
+      inputwidth -= d
+      gemm!('N', 'T', one(F), padding, unsave_view(weight, :, 1:paddingsize), one(F), outputview)
     end
 
-    inputWindow = unsafe_view(input, :, pos:(pos + inputwidth))
-    gemm!('N', 'T', 1, inputWindow, weight[:, (1:inputWidth)], 1, outputWindow)
+    # Add the result of the convolution for this output
+    inputview = unsafe_view(input, :, pos:(pos + inputwidth))
+    weightview = unsafe_view(weight, :, (d+1):inputwidth)
+    gemm!('N', 'T', one(F), inputview, weightview, one(F), outputview)
 
     # Advance the window
-    pos += kW
+    pos += dW
   end
 end
 

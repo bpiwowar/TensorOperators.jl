@@ -1,3 +1,4 @@
+export Sequence, Parallel
 
 # --- Sequence
 
@@ -34,5 +35,20 @@ function forward!(p::Parallel, input::Array)
     @assert length(input) == length(p.list)
     for a_module = p.list
         forward!(a_module, input)
+    end
+end
+
+
+ListBasedContainer = Union(Parallel, Sequence)
+
+function init!(m::ListBasedContainer)
+    for submodule in m.list
+        init!(submodule)
+    end
+end
+
+function init_gradient!(m::ListBasedContainer)
+    for submodule in m.list
+        init_gradient!(submodule)
     end
 end
