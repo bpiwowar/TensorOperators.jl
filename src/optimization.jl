@@ -144,7 +144,5 @@ function optimize!(s::RProp, p::ArrayParameters)
         p.values[i] -= state.stepsize[i] * gradient[i]
     end
 
-    println(sum(state.stepsize) / length(gradient))
-
 end
 

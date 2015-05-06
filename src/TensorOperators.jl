@@ -8,25 +8,6 @@ import Base.zeros
 import Base.push!
 
 
-# --- Some useful macros
-
-macro stabilize(ex)
-    @assert ex.head == :(=)
-    @assert length(ex.args) == 2
-    @assert ex.args[1].head == :(::)
-
-    value = ex.args[2]
-    valueType = ex.args[1].args[2]
-
-    quote
-        if isa($value, $valueType)
-            $ex
-        else
-            Base.error("Cannot stabilize type to $valueType for $value")
-        end
-    end
-
-end
 
 
 # --- Devices and types
@@ -35,9 +16,9 @@ typealias Float FloatingPoint
 
 abstract Device
 
-const RealArray = Union(Array)
-const RealMatrix = Union(Matrix)
-const RealVector = Union(Vector)
+const RealArray = Union(DenseArray)
+const RealMatrix = Union(DenseMatrix)
+const RealVector = Union(DenseVector)
 
 arrayOf(D, F, ::Integer) =  error("Cannot compute matrix of ($D, $F)")
 
@@ -49,7 +30,7 @@ matrixOf(D,F) = arrayOf(D, F, 2)
 immutable CPUDevice <: Device end
 export CPUDevice
 
-arrayOf{F}(::Type{CPUDevice}, ::Type{F}, dims::Int64) = Array{F, dims}
+arrayOf{F}(::Type{CPUDevice}, ::Type{F}, dims::Int64) = DenseArray{F, dims}
 array{F<:Float}(::Type{CPUDevice}, ::Type{F}, dims::Int64...) = Array(F, dims...)
 rand{F<:Float}(::Type{CPUDevice}, ::Type{F}, dims::Int64...) = rand(F, dims...)
 zeros{F<:Float}(::Type{CPUDevice}, ::Type{F}, dims::Int64...) = zeros(F, dims...)
@@ -146,6 +127,8 @@ end
 init!(p::ArrayParameters) = randn!(p.values)
 init_gradient!(p::ArrayParameters) = fill!(get(p.gradient), 0.)
 
+
+
 # --- Useful methods
 
 @doc doc"Ensure that the size of the of the array is at least dims
@@ -153,6 +136,39 @@ init_gradient!(p::ArrayParameters) = fill!(get(p.gradient), 0.)
 The inner storage might be preserved
 "
 function ensuresize!{D}(m::DenseArray{D}, dims::UInt...)
+end
+
+macro stabilize(ex)
+    @assert ex.head == :(=)
+    @assert length(ex.args) == 2
+    @assert ex.args[1].head == :(::)
+
+    value = ex.args[2]
+    valueType = ex.args[1].args[2]
+
+    quote
+        if isa($value, $valueType)
+            $ex
+        else
+            Base.error("Cannot stabilize type to $valueType for $value")
+        end
+    end
+
+end
+
+@doc "Fill an array with random number from a uniform distribution"
+function uniform!{F<:Float}(a::DenseArray{F}, min::F, max::F)
+  r::F = max - min
+  @inbounds for i = 1:length(a)
+    a[i] = rand(F) * r + min
+  end
+end
+
+@doc "Fill an array with random number from a gaussian distribution"
+function randn!{F<:Float}(a::DenseArray{F}, mu::F, sigma::F)
+  @inbounds for i = 1:length(a)
+    a[i] = randn(F) * sigma + mu
+  end
 end
 
 # --- Includes
@@ -165,7 +181,7 @@ include("containers.jl")
 
 # Operators
 include("base.jl")
-# include("convolution.jl")
+include("convolution.jl")
 include("bhsm.jl")
 
 # Transfer functions

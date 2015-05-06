@@ -4,61 +4,59 @@
 
 =#
 
+export TemporalConvolution
+
 type TemporalConvolution{D<:Device, F<:Float} <: Operator
-  @doc "Kernel width"
   kW::UInt
 
-  @doc "Delta"
   dW::UInt
 
-  @doc "The convolution matrix"
-  weight::MatrixParameters
+  input_framesize::UInt
 
-  @doc "Real vector"
-  bias::MatrixVector
+  weight::MatrixParameters{D,F}
 
-  @doc doc"Used for padding"
-  padding::MatrixParameters
-end
+  bias::VectorParameters{D,F}
+
+  padding::MatrixParameters{D,F}
 
 
-local TemporalConvolution, parent = torch.class('nn.TemporalConvolution', 'nn.Module')
+  @doc doc"Creates a new temporal convolution operator
 
-@doc doc"Creates a new temporal convolution operator
+  input_framesize The size of the inputs vectors
+  output_framesize The size of the output vectors
+  kW The kernel width - how many inputs are taken into account
+  dW The move width - the step size
+  padding An input matrix used for padding. Must have input_framesize rows
+  "
+  function TemporalConvolution(input_framesize, output_framesize, kW, dW::Int=1, padding=Nullable{RealMatrix}())
+    self = new()
 
-input_framesize The size of the inputs vectors
-output_framesize The size of the output vectors
-kW The kernel width - how many inputs are taken into account
-dW The move width - the step size
-padding An input matrix used for padding. Must have input_framesize rows
-"
-function TemporalConvolution{D<:Device, F<:Float}(input_framesize, output_framesize, kW, dW::UInt=1, padding=Nullable{RealMatrix})
-  self = new()
+    @assert(isnull(padding) || size(padding, 1) == input_framesize, "Padding should be null or have the same number of rows than the input")
+    if isnull(padding)
+      self.padding = MatrixParameters{D,F}(input_framesize, 0)
+    else
+      self.padding = MatrixParameters{D,F}(array(D, F, input_framesize, 0), array(D, F, input_framesize, size(padding, 0)))
+    end
 
-  @assert(isnull(padding) || size(padding, 1) == input_framesize, "Padding should be null or have the same number of rows than the input")
-  if isnull(padding)
-    self.padding = new MatrixParameters{D,F}(array(D, F, input_framesize, 0), array(D, F, input_framesize, 0))
-  else
-    self.padding = new MatrixParameters{D,F}(array(D, F, input_framesize, 0), array(D, F, input_framesize, size(padding, 0)))
+    @assert(size(self.padding.values, 2) < kW, "Kernel width should be greater than the padding size")
+
+    self.input_framesize = input_framesize
+
+    self.kW = kW
+    self.dW = dW
+
+    self.weight = MatrixParameters{D,F}(output_framesize, input_framesize * kW)
+    self.bias = VectorParameters{D, F}(output_framesize)
+
+    reset!(self)
+    self
   end
 
-  @assert(size(padding, 2) < kW, "Kernel width should be greater than the padding size")
-
-  self.input_framesize = input_framesize
-  self.output_framesize = output_framesize
-  self.kW = kW
-  self.dW = dW
-
-  self.weight = MatrixParameters{D,F}(output_framesize, input_framesize * kW)
-  self.bias = VectorParameters{D, F}(output_framesize)
-
-  reset!(self)
-  self
 end
 
-function reset!{D<:Device, F<:Float}(s::TemporalConvolution{D,F}, stdv=Nullable{F})
-   if isnull(stdv) then
-      stdv = 1/math.sqrt(self.kW*self.input_framesize)
+function reset!{D<:Device, F<:Float}(s::TemporalConvolution{D,F}, stdv=Nullable{F}())
+   if isnull(stdv)
+      stdv = 1/ sqrt(s.kW * s.input_framesize)
    else
       stdv = stdv * math.sqrt(3)
    end
@@ -68,8 +66,7 @@ function reset!{D<:Device, F<:Float}(s::TemporalConvolution{D,F}, stdv=Nullable{
 end
 
 
-function forward!{D<:Device,F<:Float}(m::TemporalConvolution, input::DenseArray{F, 2})
-
+function forward!{D<:Device,F<:Float}(m::TemporalConvolution{D,F}, input::DenseArray{F, 2})
   # Prepare
   nInputFrame = size(input, 1)
   paddingsize = size(m.padding, 2)

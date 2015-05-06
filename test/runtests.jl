@@ -4,7 +4,6 @@ using Base.Test
 
 # @test 1 == 1
 
-model = Sequence()
 l2cost = L2Cost()
 
 x = rand(23, 100)
@@ -13,8 +12,8 @@ m = TensorOperators.LinearOperator{CPUDevice, Float64}(100, 5)
 epsilon = 5e-5
 
 init!(m)
-# optimizer = StochasticGradient(1e-3)
-optimizer = RProp(1e-3)
+optimizer = StochasticGradient(1e-3)
+#optimizer = RProp(1e-3)
 println(typeof(optimizer))
 
 @time for i = 1:100
@@ -30,4 +29,5 @@ println(typeof(optimizer))
     optimize!(optimizer, m)
 end
 
-include("bhsm.jl")
+
+# include("bhsm.jl")
