@@ -1,0 +1,1 @@
+- use `FakeDenseArray` as a placeholder to avoid allocating two times the memory (and do not allocate array when constructing operators)

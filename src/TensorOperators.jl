@@ -3,12 +3,7 @@ module TensorOperators
 VERSION < v"0.4-" && using Docile
 using Base.LinAlg.BLAS
 
-import Base.rand
-import Base.zeros
-import Base.push!
-
-
-
+import Base: rand, zeros, push!, length
 
 # --- Devices and types
 
@@ -78,55 +73,7 @@ export init_gradient!, forward!, backward!, init!
 
 # --- Parameters
 
-abstract Parameters
-
-@doc doc"Operator parameters - contains the values, the gradient and optimization specific information"
-type ArrayParameters{D<:Device, F<:Float, N} <: Parameters
-  values::RealArray
-
-  @doc doc"Gradient, or null if the gradien d qt should not be computed for this set of parameters"
-  gradient::Nullable{RealArray}
-
-  optimization_state::Nullable{Any} # Used by an optimization method to store any parameter related information
-
-  function ArrayParameters(dims::Int64...)
-    @assert length(dims) == N::Int
-    new(array(D,F,dims...), array(D,F,dims...), Nullable())
-  end
-end
-
-typealias VectorParameters{D<:Device, F<:Float} ArrayParameters{D, F, 1}
-typealias MatrixParameters{D<:Device, F<:Float} ArrayParameters{D, F, 2}
-
-# Caches the parameter fields for each type
-const parametersMap = Dict{Type, Array{Symbol}}()
-
-function parameters{T<:Operator}(t::Type{T})
-    function compute()
-        p = Any[]
-        for field = fieldnames(t)
-            if fieldtype(t, field) <: Parameters
-                push!(p, field)
-            end
-        end
-        p
-    end
-
-    return get!(compute, parametersMap, t)
-end
-
-function parameters(m::Operator)
-    function _it()
-        for field in parameters(typeof(m))
-            produce(m.(field))
-        end
-    end
-    Task(_it)
-end
-
-init!(p::ArrayParameters) = randn!(p.values)
-init_gradient!(p::ArrayParameters) = fill!(get(p.gradient), 0.)
-
+include("parameters.jl")
 
 
 # --- Useful methods

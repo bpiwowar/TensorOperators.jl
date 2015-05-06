@@ -4,6 +4,8 @@
 
 =#
 
+export LinearOperator
+
 type LinearOperator{D<:Device, F<:Float} <: Operator
   # The parameters
   weight::MatrixParameters{D,F}
