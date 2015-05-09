@@ -37,12 +37,12 @@ immutable CudaDevice <: Device end
 export CudaDevice
 
 
-# --- Operators ----
+# --- Layers ----
 
-abstract Operator
+abstract Layer
 
 @doc doc"Computes the gradient wrt the parameters and the input. Returns the gradient wrt to the inputs" ->
-function backward!(m::Operator, input, gradOutput, scale::Float64=1.)
+function backward!(m::Layer, input, gradOutput, scale::Float64=1.)
     update_gradient!(m, input, gradOutput, scale)
     return compute_inputgradient!(m, input, gradOutput)
 end
@@ -50,7 +50,7 @@ end
 
 
 # Generic function for initializing the gradient
-function init_gradient!(m::Operator)
+function init_gradient!(m::Layer)
     for v in parameters(m)
         if !isnull(v.gradient)
             init_gradient!(v)
@@ -59,7 +59,7 @@ function init_gradient!(m::Operator)
 end
 
 
-function init!(m::Operator)
+function init!(m::Layer)
     for v in parameters(m)
         init!(v)
     end
@@ -126,7 +126,7 @@ include("optimization.jl")
 # Container modules
 include("containers.jl")
 
-# Operators
+# Layers
 include("base.jl")
 include("convolution.jl")
 include("bhsm.jl")

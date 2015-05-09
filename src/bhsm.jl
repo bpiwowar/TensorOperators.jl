@@ -17,7 +17,7 @@ type BinaryHierarchicalSoftmaxUpdates
 end
 
 # Holds the different structures
-type BinaryHierarchicalSoftmax{D<:Device, F<:Float} <: Operator
+type BinaryHierarchicalSoftmax{D<:Device, F<:Float} <: Layer
   # List of parents, using the sign for denoting which branch
   parents::Vector{Int}
 

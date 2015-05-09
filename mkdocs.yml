@@ -1,4 +1,4 @@
-site_name: Tensor Operators
+site_name: Tensor Layers
 repo_url: https://github.com/bpiwowar/TensorOperators.jl
 repo_name: GitHub
 site_author: Benjamin Piwowarski
@@ -8,11 +8,11 @@ theme: journal
 
 pages:
 - [index.md, Home]
-- [modules.md, Operators, Introduction]
-- [containers.md, Operators, Containers]
-- [linear.md, Operators, Linear]
-- [transfer.md, Operators, Transfer]
-- [classification.md, Operators, Classification]
+- [modules.md, Layers, Introduction]
+- [containers.md, Layers, Containers]
+- [linear.md, Layers, Linear]
+- [transfer.md, Layers, Transfer]
+- [classification.md, Layers, Classification]
 - [cost.md, Cost]
 - [optimization.md, Optimization]
 

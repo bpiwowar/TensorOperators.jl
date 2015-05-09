@@ -1,6 +1,6 @@
 # --- L2 Cost
 
-type L2Cost <: Operator
+type L2Cost <: Layer
     output
     grad_input
     L2Cost() = new()

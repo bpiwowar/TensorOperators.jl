@@ -1,4 +1,4 @@
-The MatrixOperators.jl package is licensed under the MIT "Expat" License:
+The MatrixLayers.jl package is licensed under the MIT "Expat" License:
 
 > Copyright (c) 2015: Benjamin Piwowarski.
 >

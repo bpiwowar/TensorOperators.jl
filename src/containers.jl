@@ -3,12 +3,12 @@ export Sequence, Parallel
 # --- Sequence
 
 type Sequence
-    list::Array{Operator}
+    list::Array{Layer}
 
     Sequence() = new([])
 end
 
-function push!(s::Sequence, a_module::Operator)
+function push!(s::Sequence, a_module::Layer)
     push!(s.list, a_module)
 end
 
@@ -22,12 +22,12 @@ end
 # --- Parallel
 
 type Parallel
-    list::Array{Operator}
+    list::Array{Layer}
 
     Parallel() = new([])
 end
 
-function push!(p::Parallel, a_module::Operator)
+function push!(p::Parallel, a_module::Layer)
     push!(p.list, a_module)
 end
 

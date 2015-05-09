@@ -1,9 +1,9 @@
 # TensorOperators package
 
-The Tensor Operators package contains building blocks for neural network machine learning algorithms.
+The Tensor Layers package contains building blocks for neural network machine learning algorithms.
 It follows many other packages (like torch7) by defining:
 
-- Operators
+- Layers
 - Cost
 - Optimization methods
 

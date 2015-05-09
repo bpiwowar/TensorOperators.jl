@@ -6,7 +6,7 @@
 
 export TemporalConvolution
 
-type TemporalConvolution{D<:Device, F<:Float} <: Operator
+type TemporalConvolution{D<:Device, F<:Float} <: Layer
   kW::UInt
 
   dW::UInt

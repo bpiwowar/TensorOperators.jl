@@ -5,7 +5,7 @@
 The generic method `init_gradient!` is used to initialize the
 
 
-# Operators
+# Layers
 
 - [Containers](containers.md) allow to combine the different modules (e.g. a sequence of modules to build a neural network)
 - [Linear modules](linear.md) compute a linear function of their inputs. This include convolution, etc.

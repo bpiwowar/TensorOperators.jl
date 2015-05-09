@@ -8,7 +8,7 @@ l2cost = L2Cost()
 
 x = rand(23, 100)
 z = rand(23, 5)
-m = TensorOperators.LinearOperator{CPUDevice, Float64}(100, 5)
+m = TensorOperators.LinearLayer{CPUDevice, Float64}(100, 5)
 epsilon = 5e-5
 
 init!(m)

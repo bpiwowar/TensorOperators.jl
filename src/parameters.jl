@@ -1,6 +1,6 @@
 abstract Parameters
 
-@doc doc"Operator parameters - contains the values, the gradient and optimization specific information"
+@doc doc"Layer parameters - contains the values, the gradient and optimization specific information"
 type ArrayParameters{D<:Device, F<:Float, N} <: Parameters
   values::RealArray
 
@@ -24,7 +24,7 @@ size(m::ArrayParameters) = size(m.values)
 # Caches the parameter fields for each type
 const parametersMap = Dict{Type, Array{Symbol}}()
 
-function parameters{T<:Operator}(t::Type{T})
+function parameters{T<:Layer}(t::Type{T})
     function compute()
         p = Any[]
         for field in fieldnames(t)
@@ -38,7 +38,7 @@ function parameters{T<:Operator}(t::Type{T})
     return get!(compute, parametersMap, t)
 end
 
-function parameters(m::Operator)
+function parameters(m::Layer)
     function _it()
         for field in parameters(typeof(m))
             produce(m.(field))
@@ -57,7 +57,7 @@ init_gradient!(p::ArrayParameters) = fill!(get(p.gradient), 0.)
 - All parameters should have the same storage and type
 
 """ ->
-function linearize_parameters!(D::Device, F::Float, m::Operator, copy::Bool = false)
+function linearize_parameters!(D::Device, F::Float, m::Layer, copy::Bool = false)
   # Compute the total size needed
   size::Uint = 0
   for p in parameters(m)

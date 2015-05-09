@@ -9,7 +9,7 @@ export optimize!, StochasticGradient, RProp
 abstract Optimizer
 
 @doc doc"Loop over parameters and call the optimizer for each parameter set with non null gradient"
-function optimize!(s::Optimizer, m::Operator)
+function optimize!(s::Optimizer, m::Layer)
   for v in parameters(m)
     if !isnull(v.gradient)
         optimize!(s, v)
