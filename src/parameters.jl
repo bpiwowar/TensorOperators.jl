@@ -1,10 +1,10 @@
 abstract Parameters
 
-@doc doc"Layer parameters - contains the values, the gradient and optimization specific information"
+@doc doc"Layer parameters - contains the values, the gradient and optimization specific information" ->
 type ArrayParameters{D<:Device, F<:Float, N} <: Parameters
   values::RealArray
 
-  @doc doc"Gradient, or null if the gradien d qt should not be computed for this set of parameters"
+  # @doc doc"Gradient, or null if the gradien d qt should not be computed for this set of parameters" ->
   gradient::Nullable{RealArray}
 
   optimization_state::Nullable{Any} # Used by an optimization method to store any parameter related information

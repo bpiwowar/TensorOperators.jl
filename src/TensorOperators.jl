@@ -1,9 +1,15 @@
 module TensorOperators
 
-VERSION < v"0.4-" && using Docile
+if VERSION < v"0.4-"
+    using Docile
+
+    include("compat-0.3.jl")
+end
+
 using Base.LinAlg.BLAS
 
-import Base: rand, zeros, push!, length
+import Base: rand, randn!, rand!, zeros, push!, length
+
 
 # --- Devices and types
 
@@ -15,20 +21,22 @@ const RealArray = Union(DenseArray)
 const RealMatrix = Union(DenseMatrix)
 const RealVector = Union(DenseVector)
 
-arrayOf(D, F, ::Integer) =  error("Cannot compute matrix of ($D, $F)")
+arrayOf(::Device, F, ::Integer) =  error("Cannot compute matrix of ($D, $F)")
 
-vectorOf(D,F) = arrayOf(D, F, 1)
-matrixOf(D,F) = arrayOf(D, F, 2)
+vectorOf(d::Device, F) = arrayOf(F, d, 1)
+matrixOf(d::Device, F) = arrayOf(F, d, 2)
 
 # --- CPU
 
 immutable CPUDevice <: Device end
-export CPUDevice
+export CPUDevice, cpu
 
-arrayOf{F}(::Type{CPUDevice}, ::Type{F}, dims::Int64) = DenseArray{F, dims}
-array{F<:Float}(::Type{CPUDevice}, ::Type{F}, dims::Int64...) = Array(F, dims...)
-rand{F<:Float}(::Type{CPUDevice}, ::Type{F}, dims::Int64...) = rand(F, dims...)
-zeros{F<:Float}(::Type{CPUDevice}, ::Type{F}, dims::Int64...) = zeros(F, dims...)
+cpu = CPUDevice()
+
+arrayOf{F}(d::Type{CPUDevice}, ::Type{F}, dims::Int64) = DenseArray{F, dims}
+array{F<:Float}(d::Type{CPUDevice}, ::Type{F}, dims::Int64...) = Array(d, F, dims...)
+rand{F<:Float}(d::Type{CPUDevice}, ::Type{F}, dims::Int64...) = rand(d, F, dims...)
+zeros{F<:Float}(d::Type{CPUDevice}, ::Type{F}, dims::Int64...) = zeros(d, F, dims...)
 
 # --- CUDA
 
@@ -46,7 +54,6 @@ function backward!(m::Layer, input, gradOutput, scale::Float64=1.)
     update_gradient!(m, input, gradOutput, scale)
     return compute_inputgradient!(m, input, gradOutput)
 end
-
 
 
 # Generic function for initializing the gradient
@@ -81,7 +88,7 @@ include("parameters.jl")
 @doc doc"Ensure that the size of the of the array is at least dims
 
 The inner storage might be preserved
-"
+" ->
 function ensuresize!{D}(m::DenseArray{D}, dims::UInt...)
 end
 
@@ -103,7 +110,7 @@ macro stabilize(ex)
 
 end
 
-@doc "Fill an array with random number from a uniform distribution"
+@doc "Fill an array with random number from a uniform distribution" ->
 function uniform!{F<:Float}(a::DenseArray{F}, min::F, max::F)
   r::F = max - min
   @inbounds for i = 1:length(a)
@@ -111,7 +118,7 @@ function uniform!{F<:Float}(a::DenseArray{F}, min::F, max::F)
   end
 end
 
-@doc "Fill an array with random number from a gaussian distribution"
+@doc "Fill an array with random number from a gaussian distribution" ->
 function randn!{F<:Float}(a::DenseArray{F}, mu::F, sigma::F)
   @inbounds for i = 1:length(a)
     a[i] = randn(F) * sigma + mu

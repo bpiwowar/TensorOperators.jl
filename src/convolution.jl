@@ -6,7 +6,7 @@
 
 export TemporalConvolution
 
-type TemporalConvolution{D<:Device, F<:Float} <: Layer
+type TemporalConvolution{F<:Float, D<:Device} <: Layer
   kW::UInt
 
   dW::UInt
@@ -27,8 +27,8 @@ type TemporalConvolution{D<:Device, F<:Float} <: Layer
   kW The kernel width - how many inputs are taken into account
   dW The move width - the step size
   padding An input matrix used for padding. Must have input_framesize rows
-  "
-  function TemporalConvolution(input_framesize, output_framesize, kW, dW::Int=1, padding=Nullable{RealMatrix}())
+  " ->
+  function TemporalConvolution(device::D, input_framesize::UInt, output_framesize::UInt, kW::UInt, dW::Int=1, padding=Nullable{RealMatrix}())
     self = new()
 
     @assert(isnull(padding) || size(padding, 1) == input_framesize, "Padding should be null or have the same number of rows than the input")

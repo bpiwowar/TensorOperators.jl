@@ -1,4 +1,4 @@
-@doc doc"Hyperbolic tangent transfer layer"
+@doc doc"Hyperbolic tangent transfer layer" ->
 type TanH{D<:Device, F<:Float}
     output::RealArray
     grad_input::RealArray

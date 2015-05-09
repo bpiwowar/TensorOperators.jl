@@ -8,7 +8,7 @@ export optimize!, StochasticGradient, RProp
 
 abstract Optimizer
 
-@doc doc"Loop over parameters and call the optimizer for each parameter set with non null gradient"
+@doc doc"Loop over parameters and call the optimizer for each parameter set with non null gradient" ->
 function optimize!(s::Optimizer, m::Layer)
   for v in parameters(m)
     if !isnull(v.gradient)
@@ -72,9 +72,8 @@ end
 - stepsizemax : maximum stepsize allowed (default 50)
 - stepsizemin : minimum stepsize allowed (default 1e-6)
 - niter       : number of iterations (default 1)
-"
+" ->
 immutable RProp <: Optimizer
-    @doc "Initial step size"
     stepsize::Float64
 
     etaplus::Float64
@@ -102,7 +101,6 @@ type RPropState
     delta
     stepsize
 
-    @doc doc"11 = zero, 01 = negative, 00 = positive, 11 = unassigned"
     sign::BitArray{2}
 
     function RPropState(l::Int, stepsize::Float64)
