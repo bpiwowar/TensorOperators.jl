@@ -4,15 +4,16 @@ abstract Parameters
 type ArrayParameters{D<:Device, F<:Float, N} <: Parameters
   values::RealArray
 
-  # @doc doc"Gradient, or null if the gradien d qt should not be computed for this set of parameters" ->
+  # Gradient, or null if the gradient
   gradient::Nullable{RealArray}
 
+  # FIXME: remove? should not be part of operators?
   optimization_state::Nullable{Any} # Used by an optimization method to store any parameter related information
+end
 
-  function ArrayParameters(dims::Int64...)
-    @assert length(dims) == N::Int
-    new(array(D,F,dims...), array(D,F,dims...), Nullable())
-  end
+function ArrayParameters{D<:Device, F<:Float}(d::D, ::Type{F}, dims::Int64...)
+  @assert length(dims) == N::Int
+  ArrayParameters{D,F,N}(array(d, F, dims...), array(d, F, dims...), Nullable())
 end
 
 typealias VectorParameters{D<:Device, F<:Float} ArrayParameters{D, F, 1}

@@ -20,14 +20,14 @@ type TemporalConvolution{F<:Float, D<:Device} <: Layer
   padding::MatrixParameters{D,F}
 
 
-  @doc doc"Creates a new temporal convolution operator
+  # @doc doc"Creates a new temporal convolution operator
 
-  input_framesize The size of the inputs vectors
-  output_framesize The size of the output vectors
-  kW The kernel width - how many inputs are taken into account
-  dW The move width - the step size
-  padding An input matrix used for padding. Must have input_framesize rows
-  " ->
+  # input_framesize The size of the inputs vectors
+  # output_framesize The size of the output vectors
+  # kW The kernel width - how many inputs are taken into account
+  # dW The move width - the step size
+  # padding An input matrix used for padding. Must have input_framesize rows
+  # " ->
   function TemporalConvolution(device::D, input_framesize::UInt, output_framesize::UInt, kW::UInt, dW::Int=1, padding=Nullable{RealMatrix}())
     self = new()
 
@@ -78,14 +78,10 @@ function forward!{D<:Device,F<:Float}(m::TemporalConvolution{D,F}, input::DenseA
   @stabilize padding::matrixOf(D,F) = m.padding.values
   @stabilize weight::matrixOf(D, F) = m.weight.values
 
-  # Copy bias first
-  for k = 1:nOutputFrame
-    output[k, :] = bias
-  end
-
   # Compute the convolution
   pos::Int = -paddingsize # Position in the input
   for k = 1:nOutputFrame
+    output[k, :] = bias
     outputview = unsafe_view(output, :, k)
 
     # Deals with the padding

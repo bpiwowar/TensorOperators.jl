@@ -7,6 +7,9 @@
 export LinearLayer
 
 type LinearLayer{D<:Device, F<:Float} <: Layer
+  # Device
+  device::Device
+
   # The parameters
   weight::MatrixParameters{D,F}
   bias::MatrixParameters{D,F}
@@ -15,26 +18,15 @@ type LinearLayer{D<:Device, F<:Float} <: Layer
   output::RealMatrix
   grad_input::RealMatrix
 
-  # @doc doc"Initialize a linear module with the input and output size" ->
-  function LinearLayer(inputSize::Int64, outputSize::Int64)
-    new(MatrixParameters{D,F}(inputSize, outputSize), MatrixParameters{D,F}(1, outputSize), array(D,F,0,0), array(D,F,0,0))
-  end
 end
 
 
-function ensuresize{T,D}(array::Array{T,D}, dims::Int...)
-  @assert ndims(array) == length(dims)
-  if size(array) == dims
-    return array
-  end
-  return Array{T,D}(dims...)
-end
-
-macro ensuresize(ex)
-  array = ex.args[1]
-  quote
-    $(esc(array)) = ensuresize($ex...)
-  end
+# @doc doc"Initialize a linear module with the input and output size" ->
+function LinearLayer{D<:Device, F<:Float}(d::D, ::Type{F}, inputSize::UInt, outputSize::UInt)
+  new(
+    MatrixParameters(d, F, inputSize, outputSize), MatrixParameters(d, F, 1, outputSize), 
+    array(d, F, 0, 0), array(d, F, 0, 0)
+  )
 end
 
 function forward!{D<:Device, F<:Float}(linear::LinearLayer{D,F}, input::RealMatrix)
