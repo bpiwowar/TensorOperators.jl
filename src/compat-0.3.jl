@@ -2,6 +2,8 @@
 # This file is a part of Julia. License is MIT: http://julialang.org/license
 import Base.convert
 
+fieldnames = names
+
 # FIXME: should not be this
 UInt64 = Int
 UInt = UInt64

@@ -41,23 +41,21 @@ size(m::ArrayParameters) = size(m.values)
 # Caches the parameter fields for each type
 const parametersMap = Dict{Type, Array{Symbol}}()
 
-function parameters{T<:Layer}(t::Type{T})
-    function compute()
-        p = Any[]
-        for field in fieldnames(t)
-            if fieldtype(t, field) <: Parameters
-                push!(p, field)
-            end
+function _parameters(layer::Layer)
+  return get!(parametersMap, typeof(layer)) do
+    p = Any[]
+    for field in names(layer)
+        if fieldtype(layer, field) <: Parameters
+            push!(p, field)
         end
-        p
     end
-
-    return get!(compute, parametersMap, t)
+    p
+  end
 end
 
 function parameters(m::Layer)
     function _it()
-        for field in parameters(typeof(m))
+        for field in _parameters(m)
             produce(m.(field))
         end
     end

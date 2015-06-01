@@ -1,15 +1,24 @@
 function ensuresize{T,D}(array::Array{T,D}, dims::Int...)
-  @assert ndims(array) == length(dims)
+  @assert(ndims(array) == length(dims), "$(size(array)) is different to $(dims)")
+
   if size(array) == dims
     return array
   end
-  return Array{T,D}(dims...)
+
+  return Array(T, dims...)
 end
 
 macro ensuresize(ex)
   array = ex.args[1]
+  other = ex.args[2:length(ex.args)]
+  
+  es = quote ensuresize($array) end
+  for arg in ex.args[2:length(ex.args)]
+    push!(es.args[2].args, arg)
+  end
+  
   quote
-    $(esc(array)) = ensuresize($ex...)
+    $(esc(array)) = $es
   end
 end
 

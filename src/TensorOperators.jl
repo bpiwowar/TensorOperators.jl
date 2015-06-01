@@ -8,7 +8,7 @@ end
 
 using Base.LinAlg.BLAS
 
-import Base: rand, randn!, rand!, zeros, push!, length
+import Base: rand, randn!, rand!, zeros, push!, length, size
 
 
 # --- Devices and types

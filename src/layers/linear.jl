@@ -34,7 +34,6 @@ end
 
 function forward!{D<:Device, F<:Float}(linear::LinearLayer{D,F}, input::RealMatrix)
   @ensuresize linear.output, size(input,1), size(linear.weight.values, 2)
-
   gemm!('N', 'N', 1., input, linear.weight.values, 0., linear.output)
   broadcast!(+, linear.output, linear.output, linear.bias.values)
 end
