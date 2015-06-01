@@ -2,6 +2,7 @@ abstract Parameters
 
 @doc doc"Layer parameters - contains the values, the gradient and optimization specific information" ->
 type ArrayParameters{D<:Device, F<:Float, N} <: Parameters
+  # The parameters
   values::RealArray
 
   # Gradient, or null if the gradient
@@ -9,15 +10,30 @@ type ArrayParameters{D<:Device, F<:Float, N} <: Parameters
 
   # FIXME: remove? should not be part of operators?
   optimization_state::Nullable{Any} # Used by an optimization method to store any parameter related information
-end
 
-function ArrayParameters{D<:Device, F<:Float}(d::D, ::Type{F}, dims::Int64...)
-  @assert length(dims) == N::Int
-  ArrayParameters{D,F,N}(array(d, F, dims...), array(d, F, dims...), Nullable())
+
+  ArrayParameters(values, gradient) = new(values, gradient, Nullable())
+
+  function ArrayParameters(d::D, ::Type{F}, dims::Int64...)
+    @assert length(dims) == N
+    new(array(d, F, dims...), Nullable(array(d, F, dims...)), Nullable())
+  end
 end
 
 typealias VectorParameters{D<:Device, F<:Float} ArrayParameters{D, F, 1}
 typealias MatrixParameters{D<:Device, F<:Float} ArrayParameters{D, F, 2}
+
+
+arrayParameters{D<:Device, F<:Float}(d::D, ::Type{F}, dims::Int64...) = 
+  ArrayParameters{D,F,length(dims)}(d, F, dims...)
+
+matrixParameters{D<:Device, F<:Float}(d::D, ::Type{F}, dims::Int64...) =
+  ArrayParameters{D,F,2}(d, F, dims...)
+
+vectorParameters{D<:Device, F<:Float}(d::D, ::Type{F}, dims::Int64...) =
+  ArrayParameters{D,F,1}(d, F, dims...)
+
+
 
 length(m::ArrayParameters) = length(m.values)
 size(m::ArrayParameters) = size(m.values)

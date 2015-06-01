@@ -22,10 +22,13 @@ end
 
 
 # @doc doc"Initialize a linear module with the input and output size" ->
-function LinearLayer{D<:Device, F<:Float}(d::D, ::Type{F}, inputSize::UInt, outputSize::UInt)
-  new(
-    MatrixParameters(d, F, inputSize, outputSize), MatrixParameters(d, F, 1, outputSize), 
-    array(d, F, 0, 0), array(d, F, 0, 0)
+function LinearLayer{D<:Device, F<:Float}(d::D, ::Type{F}, inputSize::Int64, outputSize::Int64)
+  LinearLayer{D,F}(
+    d,
+    matrixParameters(d, F, inputSize, outputSize), 
+    matrixParameters(d, F, 1, outputSize), 
+    array(d, F, 0, 0), 
+    array(d, F, 0, 0)
   )
 end
 

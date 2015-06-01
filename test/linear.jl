@@ -1,9 +1,12 @@
 using TensorOperators
 using Base.Test
 
-z = TensorOperators.MatrixParameters(cpu, Float64, 5, 3)
+TO = TensorOperators
 
-m = TensorOperators.LinearLayer(cpu, Float64, 100, 5)
+z = TO.arrayParameters(cpu, Float64, 5, 3)
+z = TO.matrixParameters(cpu, Float64, 5, 3)
+
+m = TO.LinearLayer(cpu, Float64, 100, 5)
 
 x = rand(23, 100)
 z = rand(23, 5)
