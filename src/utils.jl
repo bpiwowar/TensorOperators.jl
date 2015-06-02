@@ -11,15 +11,8 @@ end
 macro ensuresize(ex)
   array = ex.args[1]
   other = ex.args[2:length(ex.args)]
-  
-  es = quote ensuresize($array) end
-  for arg in ex.args[2:length(ex.args)]
-    push!(es.args[2].args, arg)
-  end
-  
-  quote
-    $(esc(array)) = $es
-  end
+
+  a = esc(Expr(:(=), array, Expr({:call, :ensuresize, array, other...}...)))
 end
 
 
@@ -39,13 +32,13 @@ macro stabilize(ex)
     value = ex.args[2]
     valueType = ex.args[1].args[2]
 
-    quote
-        if isa($value, $valueType)
-            $ex
-        else
-            Base.error("Cannot stabilize type to $valueType for $value")
-        end
-    end
+
+    esc(quote
+      if !isa($value, $valueType)
+        Base.error("Cannot stabilize type to $valueType for $value")
+      end
+      $ex
+    end)
 
 end
 

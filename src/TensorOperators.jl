@@ -7,6 +7,7 @@ if VERSION < v"0.4-"
 end
 
 using Base.LinAlg.BLAS
+using ArrayViews
 
 import Base: rand, randn!, rand!, zeros, push!, length, size
 
@@ -21,10 +22,10 @@ const RealArray = Union(DenseArray)
 const RealMatrix = Union(DenseMatrix)
 const RealVector = Union(DenseVector)
 
-arrayOf(::Device, F, ::Integer) =  error("Cannot compute matrix of ($D, $F)")
+arrayOf{D<:Device}(::Type{D}, F, ::Integer) =  error("Cannot compute matrix of ($D, $F)")
 
-vectorOf(d::Device, F) = arrayOf(d, F, 1)
-matrixOf(d::Device, F) = arrayOf(d, F, 2)
+vectorOf{D<:Device}(::Type{D}, F) = arrayOf(D, F, 1)
+matrixOf{D<:Device}(::Type{D}, F) = arrayOf(D, F, 2)
 
 # --- CPU
 
@@ -33,7 +34,7 @@ export CPUDevice, cpu
 
 cpu = CPUDevice()
 
-arrayOf{F<:Float}(::CPUDevice, ::Type{F}, dims::Int64) = DenseArray{F, dims}
+arrayOf{F<:Float}(::Type{CPUDevice}, ::Type{F}, dims::Int64) = DenseArray{F, dims}
 
 array{F<:Float}(d::CPUDevice, ::Type{F}, dims::Int64...) = Array(F, dims...)
 rand{F<:Float}(d::CPUDevice, ::Type{F}, dims::Int64...) = rand(F, dims...)
