@@ -40,13 +40,6 @@ array{F<:Float}(d::CPUDevice, ::Type{F}, dims::Int64...) = Array(F, dims...)
 rand{F<:Float}(d::CPUDevice, ::Type{F}, dims::Int64...) = rand(F, dims...)
 zeros{F<:Float}(d::CPUDevice, ::Type{F}, dims::Int64...) = zeros(F, dims...)
 
-# --- CUDA
-
-immutable CudaDevice <: Device end
-
-export CudaDevice
-
-
 # --- Layers ----
 
 abstract Layer
@@ -84,6 +77,8 @@ export init_gradient!, forward!, backward!, init!
 # Misc
 include("utils.jl")
 include("parameters.jl")
+
+include("cuda.jl")
 
 # Optimization
 include("optimization.jl")
