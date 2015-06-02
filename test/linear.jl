@@ -10,6 +10,7 @@ init!(m)
 x = rand(4, 3)
 z = rand(4, 5)
 
+linearize_parameters!(cpu, Float64, m)
 
 y = forward!(m, x)
 y2 = broadcast(+, m.bias.values, x * m.weight.values)

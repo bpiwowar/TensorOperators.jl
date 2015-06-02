@@ -1,5 +1,7 @@
 abstract Parameters
 
+export linearize_parameters!
+
 @doc doc"Layer parameters - contains the values, the gradient and optimization specific information" ->
 type ArrayParameters{D<:Device, F<:Float, N} <: Parameters
   # The parameters
@@ -72,28 +74,32 @@ init_gradient!(p::ArrayParameters) = fill!(get(p.gradient), 0.)
 - All parameters should have the same storage and type
 
 """ ->
-function linearize_parameters!(D::Device, F::Float, m::Layer, copy::Bool = false)
+function linearize_parameters!{F<:Float, D<:Device}(d::D, ::Type{F}, m::Layer, copy::Bool = false)
+  @assert(!copy, "not implemented")
+
   # Compute the total size needed
-  size::Uint = 0
+  totalsize::Int = 0
   for p in parameters(m)
-    if typeof(p) <: ArrayParameters && !isnull(m.gradient)
-      @assert typeof(p) <: ArrayParameter{D,F}
-      size += length(m)
+    if typeof(p) <: ArrayParameters && !isnull(p.gradient)
+      @assert typeof(p) <: ArrayParameters{D,F}
+      totalsize += length(p)
     end
   end
 
   # Allocate the array
-  values = array(D, F, size)
-  gradient = array(D, F, size)
+  values = array(d, F, totalsize)
+  gradient = array(d, F, totalsize)
 
   offset::UInt = 0
   for p in parameters(m)
-    if typeof(p) <: ArrayParameters && !isnull(m.gradient)
-      copy()
-      size = length(m.values)
-      m.values = reshape_view(view(values, offset:(offset+size-1)), size(m))
-      m.gradient = reshape_view(view(gradient, offset:(offset+size-1)), size(m))
-      offset += size
+    if typeof(p) <: ArrayParameters && !isnull(p.gradient)
+      psize = length(p.values)
+      r = offset:(offset+psize-1)
+
+      p.values = reshape_view(view(values, r), size(p.values))
+      p.gradient = Nullable(reshape_view(view(gradient, r), size(get(p.gradient))))
+
+      offset += psize
     end
   end
 
