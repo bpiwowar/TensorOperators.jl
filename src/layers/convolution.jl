@@ -71,32 +71,27 @@ end
 # Case where the input is (input_size, nb_samples)
 function forward!{D<:Device,F<:Float}(m::TemporalConvolution{D,F}, input::DenseArray{F, 2})
   # Prepare
-  nInputFrame = size(input, 1)
+  nInputFrame = size(input, 2)
   paddingsize = size(m.padding.values, 2)
   nOutputFrame = div(nInputFrame - m.kW + paddingsize, m.dW) + 1
+  println("nOutputFrame=$(nOutputFrame), nInputFrame=$(nInputFrame), kw=$(m.kW), ps=$(paddingsize), dw=$(m.dW)")
 
-  output = m.output
-
-  output = ensuresize(output,nOutputFrame,m.output_framesize)
-
-  @ensuresize output, nOutputFrame, m.output_framesize
+  output = @ensuresize m.output, m.output_framesize, nOutputFrame
 
   # Type stability
   @stabilize padding::matrixOf(D, F) = m.padding.values
   @stabilize weight::matrixOf(D, F) = m.weight.values
 
   # Compute the convolution
-  pos::Int = -paddingsize # Position in the input
+  pos::Int = 1-paddingsize # Position in the input
   inputwidth::Int = 0
 
   for k = 1:nOutputFrame
-    output[k, :] = m.bias.values
-    outputview = unsafe_view(output, :, k:k)
-    println("output=$(size(output)), outputview=$(size(outputview))")
+    output[:, k] = m.bias.values
+    outputview = unsafe_view(output, :, k)
 
     # Deals with the padding
     inputwidth = m.kW
-    println("inputwidth = $(inputwidth)")
     d::Int = 0
     if pos < 0
       d = paddingsize - pos
@@ -105,14 +100,16 @@ function forward!{D<:Device,F<:Float}(m::TemporalConvolution{D,F}, input::DenseA
     end
 
     # Add the result of the convolution for this output
-    inputview = unsafe_view(input, :, pos:(pos + inputwidth - 1))
-    weightview = unsafe_view(weight, :, (d+1):inputwidth)
-    println("size(inputview)=$(size(inputview)) / $(size(input)) / weightview=$(size(weightview)) [$(size(weight))]/ outputview=$(size(outputview))")
-    gemm!('N', 'T', one(F), inputview, weightview, one(F), outputview)
+    weightview = unsafe_view(weight, :, (d*m.input_framesize+1):((d+inputwidth)*m.input_framesize))
+    inputview = flatten_view(view(input, :, pos:(pos + inputwidth - 1)))
+
+    BLAS.gemv!('N', one(F), weightview, inputview, one(F), outputview)
 
     # Advance the window
-    pos += dW
+    pos += m.dW
   end
+
+  output
 end
 
 function compute_inputgradient!{D<:Device, F<:Float}(linear::TemporalConvolution{D,F}, input::RealMatrix, gradOutput::RealMatrix)
