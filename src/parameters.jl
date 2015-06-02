@@ -44,7 +44,7 @@ const parametersMap = Dict{Type, Array{Symbol}}()
 function _parameters(layer::Layer)
   return get!(parametersMap, typeof(layer)) do
     p = Any[]
-    for field in names(layer)
+    for field in fieldnames(layer)
         if fieldtype(layer, field) <: Parameters
             push!(p, field)
         end
