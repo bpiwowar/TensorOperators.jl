@@ -74,7 +74,6 @@ function forward!{D<:Device,F<:Float}(m::TemporalConvolution{D,F}, input::DenseA
   nInputFrame = size(input, 2)
   paddingsize = size(m.padding.values, 2)
   nOutputFrame = div(nInputFrame - m.kW + paddingsize, m.dW) + 1
-  println("nOutputFrame=$(nOutputFrame), nInputFrame=$(nInputFrame), kw=$(m.kW), ps=$(paddingsize), dw=$(m.dW)")
 
   output = @ensuresize m.output, m.output_framesize, nOutputFrame
 
