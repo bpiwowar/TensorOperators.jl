@@ -27,11 +27,11 @@ type BinaryHierarchicalSoftmax{D<:Device, F<:Float} <: Layer
   # The depth of each leave
   depth::Vector{Int}
 
-  weight::MatrixParameters{D,F}
-  bias::VectorParameters{D,F}
+  weight::matrixParameters(D,F)
+  bias::vectorParameters(D,F)
 
-  output::RealMatrix
-  grad_input::RealVector
+  output::denseRealMatrix(D,F)
+  grad_input::denseRealVector(D,F)
 
   updates::BinaryHierarchicalSoftmaxUpdates
 
@@ -188,7 +188,7 @@ function forward!{F<:Float}(self::BinaryHierarchicalSoftmax{CPUDevice, F}, input
        if size(_grad_input0) != size(input) then
          _grad_input0 = self.grad_input[1] = zeros(D, F, size(input)...)
        end
-       grad_input0::matrixOf(D,F) = _grad_input0
+       grad_input0::DenseMatrix(D,F) = _grad_input0
 
        values::vectorOf(D,F) = self.updates.values
        weight::matrixOf(D,F) = self.weight.values

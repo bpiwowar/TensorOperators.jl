@@ -5,10 +5,10 @@ export linearize_parameters!
 @doc doc"Layer parameters - contains the values, the gradient and optimization specific information" ->
 type ArrayParameters{D<:Device, F<:Float, N} <: Parameters
   # The parameters
-  values::RealArray
+  values::denseTensor(D,F,N)
 
   # Gradient, or null if the gradient
-  gradient::Nullable{RealArray}
+  gradient::Nullable{denseTensor(D,F,N)}
 
   # FIXME: remove? should not be part of operators?
   optimization_state::Nullable{Any} # Used by an optimization method to store any parameter related information
@@ -22,12 +22,19 @@ type ArrayParameters{D<:Device, F<:Float, N} <: Parameters
   end
 end
 
+
 typealias VectorParameters{D<:Device, F<:Float} ArrayParameters{D, F, 1}
 typealias MatrixParameters{D<:Device, F<:Float} ArrayParameters{D, F, 2}
 
+matrixParameters(D::TypeVar, F::TypeVar) = ArrayParameters{D,F,2}
+matrixParameters{D<:Device, F<:Float}(::Type{D}, ::Type{F}) = ArrayParameters{D,F,2}
 
-arrayParameters{D<:Device, F<:Float}(d::D, ::Type{F}, dims::Int64...) = 
+vectorParameters(D::TypeVar, F::TypeVar) = ArrayParameters{D,F,1}
+vectorParameters{D<:Device, F<:Float}(::Type{D}, ::Type{F}) = ArrayParameters{D,F,1}
+
+arrayParameters{D<:Device, F<:Float}(d::D, ::Type{F}, dims::Int64...) =
   ArrayParameters{D,F,length(dims)}(d, F, dims...)
+
 
 matrixParameters{D<:Device, F<:Float}(d::D, ::Type{F}, dims::Int64...) =
   ArrayParameters{D,F,2}(d, F, dims...)

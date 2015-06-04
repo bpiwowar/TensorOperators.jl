@@ -56,3 +56,12 @@ function randn!{F<:Float}(a::DenseArray{F}, mu::F, sigma::F)
     a[i] = randn(F) * sigma + mu
   end
 end
+
+
+# ---
+
+function randn!{T,N}(x::DenseArray{T,N})
+  @inbounds for i in 1:length(x)
+    x[i] = randn()
+  end
+end

@@ -18,9 +18,25 @@ typealias Float FloatingPoint
 
 abstract Device
 
-const RealArray = Union(DenseArray)
-const RealMatrix = Union(DenseMatrix)
-const RealVector = Union(DenseVector)
+denseRealArray(::TypeVar) = Union(DenseArray{Float64}, DenseArray{Float32})
+denseRealArray(dim::Int) = Union(DenseArray{Float32,dim}, DenseArray{Float64, dim})
+const DenseRealTensor = denseRealArray(TypeVar(:N))
+const DenseRealMatrix = denseRealArray(2)
+const DenseRealVector = denseRealArray(1)
+
+
+denseTensor(::TypeVar, F::TypeVar, N::Union(TypeVar,Int)) = DenseArray{F, N}
+denseTensor{D<:Device}(::Type{D}, F, ::Int) =  error("Cannot compute type of dense matrix of ($D, $F)")
+
+denseMatrix(D, F) = denseTensor(D, F, 2)
+denseVector(D, F) = denseTensor(D, F, 1)
+
+denseRealMatrix(::TypeVar, ::TypeVar) = DenseRealMatrix
+denseRealMatrix{F<:FloatingPoint}(D, ::Type{F}) = denseMatrix(D, F)
+denseRealVector(::TypeVar, ::TypeVar) = DenseRealVector
+denseRealVector{F<:FloatingPoint}(D, ::Type{F}) = denseVector(D, F)
+
+const IntVector = Array{Int, 1}
 
 arrayOf{D<:Device}(::Type{D}, F, ::Integer) =  error("Cannot compute matrix of ($D, $F)")
 
@@ -35,6 +51,8 @@ export CPUDevice, cpu
 cpu = CPUDevice()
 
 arrayOf{F<:Float}(::Type{CPUDevice}, ::Type{F}, dims::Int64) = DenseArray{F, dims}
+
+denseTensor{F}(::Type{CPUDevice}, ::Type{F}, dims::Int64) = DenseArray{F, dims}
 
 array{F<:Float}(d::CPUDevice, ::Type{F}, dims::Int64...) = Array(F, dims...)
 rand{F<:Float}(d::CPUDevice, ::Type{F}, dims::Int64...) = rand(F, dims...)
@@ -68,7 +86,7 @@ function init!(m::Layer)
 end
 
 
-export init_gradient!, forward!, backward!, init!
+export init_gradient!, forward!, backward!, init!, update_gradient!, compute_inputgradient!
 
 
 
@@ -78,6 +96,7 @@ export init_gradient!, forward!, backward!, init!
 include("utils.jl")
 include("parameters.jl")
 
+#
 include("cuda.jl")
 
 # Optimization
@@ -90,6 +109,7 @@ include("containers.jl")
 include("layers/linear.jl")
 include("layers/convolution.jl")
 include("layers/bhsm.jl")
+include("layers/lookup.jl")
 
 # Transfer functions
 include("transfer.jl")

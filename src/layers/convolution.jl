@@ -14,16 +14,16 @@ type TemporalConvolution{D<:Device, F<:Float} <: Layer
   input_framesize::UInt
   output_framesize::UInt
 
-  weight::MatrixParameters{D,F}
+  weight::matrixParameters(D,F)
 
-  bias::VectorParameters{D,F}
-
-  padding::MatrixParameters{D,F}
+  bias::vectorParameters(D,F)
 
   # State
-  output::RealMatrix
-  grad_input::RealMatrix
+  output::denseRealMatrix(D,F)
+  grad_input::denseRealMatrix(D,F)
 
+  TemporalConvolution(device, kw, dW, input_framesize, output_framesize, weight, bias) =
+    new(kw, dW, input_framesize, output_framesize, weight, bias, array(device, F, 0, 0), array(device, F, 0, 0))
 end
 
 # @doc doc"Creates a new temporal convolution operator
@@ -32,32 +32,17 @@ end
 # output_framesize The size of the output vectors
 # kW The kernel width - how many inputs are taken into account
 # dW The move width - the step size
-# padding An input matrix used for padding. Must have input_framesize rows
 # " ->
-function TemporalConvolution{D<:Device, F<:Float}(device::D, ::Type{F}, input_framesize::UInt, output_framesize::UInt, kW::UInt, dW::Int=1, padding=Nullable{RealMatrix}())
-  @assert(isnull(padding) || size(padding, 1) == input_framesize, "Padding should be null or have the same number of rows than the input")
-
-  if isnull(padding)
-    padding = matrixParameters(device, F, input_framesize, 0)
-  else
-    padding = MatrixParameters{D,F}(array(device, F, input_framesize, 0), array(device, F, input_framesize, size(padding, 0)))
-  end
-
-  @assert(size(padding.values, 2) < kW, "Kernel width should be greater than the padding size")
-
-  kW = kW
-  dW = dW
-
+function TemporalConvolution{D<:Device, F<:Float}(device::D, ::Type{F}, input_framesize::UInt, output_framesize::UInt, kW::UInt, dW::Int=1)
   weight = matrixParameters(device, F, output_framesize, input_framesize * kW)
   bias = vectorParameters(device, F, output_framesize)
 
-  self = TemporalConvolution{D,F}(kW, dW, input_framesize, output_framesize, weight, bias, padding, array(device, F, 0, 0), array(device, F, 0, 0))
+  self = TemporalConvolution{D,F}(device, kW, dW, input_framesize, output_framesize, weight, bias)
 
-  reset!(self)
   return self
 end
 
-function reset!{D<:Device, F<:Float}(s::TemporalConvolution{D,F}, stdv=Nullable{F}())
+function init!{D<:Device, F<:Float}(s::TemporalConvolution{D,F}, stdv=Nullable{F}())
    if isnull(stdv)
       stdv = 1/ sqrt(s.kW * s.input_framesize)
    else
@@ -72,37 +57,21 @@ end
 function forward!{D<:Device,F<:Float}(m::TemporalConvolution{D,F}, input::DenseArray{F, 2})
   # Prepare
   nInputFrame = size(input, 2)
-  paddingsize = size(m.padding.values, 2)
-  nOutputFrame = div(nInputFrame - m.kW + paddingsize, m.dW) + 1
+  nOutputFrame = div(nInputFrame - m.kW, m.dW) + 1
 
   output = @ensuresize m.output, m.output_framesize, nOutputFrame
 
-  # Type stability
-  @stabilize padding::matrixOf(D, F) = m.padding.values
-  @stabilize weight::matrixOf(D, F) = m.weight.values
+  weight = m.weight.values
 
   # Compute the convolution
-  pos::Int = 1-paddingsize # Position in the input
-  inputwidth::Int = 0
+  pos::Int = 1 # Position in the input
 
   for k = 1:nOutputFrame
-    output[:, k] = m.bias.values
     outputview = unsafe_view(output, :, k)
+    copy!(outputview, m.bias.values)
+    inputview = flatten_view(view(input, :, pos:(pos + m.kW - 1)))
 
-    # Deals with the padding
-    inputwidth = m.kW
-    d::Int = 0
-    if pos < 0
-      d = paddingsize - pos
-      inputwidth -= d
-      gemm!('N', 'T', one(F), padding, unsave_view(weight, :, 1:paddingsize), one(F), outputview)
-    end
-
-    # Add the result of the convolution for this output
-    weightview = unsafe_view(weight, :, (d*m.input_framesize+1):((d+inputwidth)*m.input_framesize))
-    inputview = flatten_view(view(input, :, pos:(pos + inputwidth - 1)))
-
-    BLAS.gemv!('N', one(F), weightview, inputview, one(F), outputview)
+    BLAS.gemv!('N', one(F), weight, inputview, one(F), outputview)
 
     # Advance the window
     pos += m.dW
@@ -111,10 +80,10 @@ function forward!{D<:Device,F<:Float}(m::TemporalConvolution{D,F}, input::DenseA
   output
 end
 
-function compute_inputgradient!{D<:Device, F<:Float}(linear::TemporalConvolution{D,F}, input::RealMatrix, gradOutput::RealMatrix)
+function compute_inputgradient!{D<:Device, F<:Float}(linear::TemporalConvolution{D,F}, input::DenseRealMatrix, gradOutput::DenseRealMatrix)
 end
 
-function update_gradient!{D<:Device, F<:Float}(linear::TemporalConvolution{D,F}, input::RealMatrix, gradOutput::RealMatrix, scale::F=1.)
+function update_gradient!{D<:Device, F<:Float}(linear::TemporalConvolution{D,F}, input::DenseRealMatrix, gradOutput::DenseRealMatrix, scale::F=1.)
 end
 
 

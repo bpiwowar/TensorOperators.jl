@@ -2,17 +2,42 @@ using TensorOperators
 using Base.Test
 
 
-m = LinearLayer(cpu, Float64, 3, 5)
+input_size = 40
+output_size = 50
+sample_size = 300
+
+m = LinearLayer(cpu, Float64, input_size, output_size)
+parameters, gradient = linearize_parameters!(cpu, Float64, m)
 init!(m)
 
 # Computes with module and directly
 
-x = rand(4, 3)
-z = rand(4, 5)
+x = randn(sample_size, input_size)
 
-linearize_parameters!(cpu, Float64, m)
+# --- Test forward
 
 y = forward!(m, x)
-y2 = broadcast(+, m.bias.values, x * m.weight.values)
+yp = broadcast(+, m.bias.values, x * m.weight.values)
 
-@test_approx_eq y2 m.output
+@test_approx_eq yp m.output
+
+# --- Test of gradient (input)
+
+dx = randn(sample_size, input_size)
+
+y = copy(y)
+∂x_∂y = copy(compute_inputgradient!(m, x, eye(output_size)))
+@test_approx_eq_eps ∂x_∂y transpose(m.weight.values) (1e-16 * length(m.weight.values))
+
+# Approximate gradient
+epsilon = 1e-5
+dx = epsilon * randn(size(x))
+xdx = x + dx
+delta = forward!(m, xdx) - y
+@test_approx_eq_eps(dx * transpose(∂x_∂y) - delta, zeros(delta), 1e-16 * length(delta))
+
+
+# --- Test of gradient (parameters)
+
+init_gradient!(m)
+∂x_∂y = copy(compute_inputgradient!(m, x, eye(output_size)))
