@@ -59,7 +59,7 @@ function forward!{D<:Device,F<:Float}(m::TemporalConvolution{D,F}, input::DenseA
   nInputFrame = size(input, 2)
   nOutputFrame = div(nInputFrame - m.kW, m.dW) + 1
 
-  output = @ensuresize m.output, m.output_framesize, nOutputFrame
+  output = @ensuresize m.output, nOutputFrame, m.output_framesize
 
   weight = m.weight.values
 
@@ -80,10 +80,32 @@ function forward!{D<:Device,F<:Float}(m::TemporalConvolution{D,F}, input::DenseA
   output
 end
 
-function compute_inputgradient!{D<:Device, F<:Float}(linear::TemporalConvolution{D,F}, input::DenseRealMatrix, gradOutput::DenseRealMatrix)
+function compute_inputgradient!{D<:Device, F<:Float}(m::TemporalConvolution{D,F}, input::DenseRealMatrix, gradOutput::DenseRealMatrix)
+ # Prepare
+  nInputFrame = size(input, 2)
+  nOutputFrame = div(nInputFrame - m.kW, m.dW) + 1
+
+  grad_input = @ensuresize m.grad_input, (size(input, 1), size(input, 2))
+
+  weight = m.weight.values
+
+  # Compute the convolution
+  pos::Int = 1 # Position in the input
+
+  for k = 1:nOutputFrame
+    outputview = unsafe_view(output, :, k)
+    copy!(outputview, m.bias.values)
+    inputview = flatten_view(view(input, :, pos:(pos + m.kW - 1)))
+
+    BLAS.gemv!('N', one(F), weight, inputview, one(F), grad_input)
+
+    # Advance the window
+    pos += m.dW
+  end
 end
 
-function update_gradient!{D<:Device, F<:Float}(linear::TemporalConvolution{D,F}, input::DenseRealMatrix, gradOutput::DenseRealMatrix, scale::F=1.)
+function update_gradient!{D<:Device, F<:Float}(m::TemporalConvolution{D,F}, input::DenseRealMatrix, gradOutput::DenseRealMatrix, scale::F=1.)
+  @assert false
 end
 
 

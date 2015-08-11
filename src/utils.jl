@@ -10,7 +10,7 @@ end
 
 macro ensuresize(ex)
   array = ex.args[1]
-  other = ex.args[2:length(ex.args)]
+  other = ex.args[2]
 
   a = esc(Expr(:(=), array, Expr({:call, :ensuresize, array, other...}...)))
 end

@@ -20,7 +20,7 @@ function LookupLayer{D<:Device, F<:Float}(d::D, ::Type{F}, size::Int64, vectorsi
 end
 
 function forward!{D<:Device, F<:Float}(lookup::LookupLayer{D,F}, input::IntVector)
-  @ensuresize lookup.output, size(input), size(lookup.weight.values, 2)
+  @ensuresize lookup.output, (size(input), size(lookup.weight.values, 2))
 
   # Just copy the output
   for i in 1:size(input)
