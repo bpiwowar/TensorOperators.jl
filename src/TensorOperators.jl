@@ -1,11 +1,5 @@
 module TensorOperators
 
-if VERSION < v"0.4-"
-    using Docile
-
-    include("compat-0.3.jl")
-end
-
 using Base.LinAlg.BLAS
 using ArrayViews
 

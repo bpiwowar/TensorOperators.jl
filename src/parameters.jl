@@ -1,8 +1,13 @@
+"Base type for all parameters"
 abstract Parameters
 
 export linearize_parameters!
 
-@doc doc"Layer parameters - contains the values, the gradient and optimization specific information" ->
+
+
+# --- Parameter types
+
+"Layer parameters - contains the values, the gradient and optimization specific information"
 type ArrayParameters{D<:Device, F<:Float, N} <: Parameters
   # The parameters
   values::denseTensor(D,F,N)
@@ -71,16 +76,21 @@ function parameters(m::Layer)
     Task(_it)
 end
 
+
+
+
+# --- Methods for parameters
+
 init!(p::ArrayParameters) = randn!(p.values)
 init_gradient!(p::ArrayParameters) = fill!(get(p.gradient), 0.)
 
 
-@doc """Linearize parameters and their gradients
+"""Linearize parameters and their gradients
 
 - Parameters with null gradient are ignored
 - All parameters should have the same storage and type
 
-""" ->
+"""
 function linearize_parameters!{F<:Float, D<:Device}(d::D, ::Type{F}, m::Layer, copy::Bool = false)
   @assert(!copy, "not implemented")
 
