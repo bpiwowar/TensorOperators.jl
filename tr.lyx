@@ -1,0 +1,228 @@
+#LyX 2.1 created this file. For more info see http://www.lyx.org/
+\lyxformat 474
+\begin_document
+\begin_header
+\textclass article
+\use_default_options true
+\maintain_unincluded_children false
+\language english
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman default
+\font_sans default
+\font_typewriter default
+\font_math auto
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100
+\font_tt_scale 100
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize default
+\use_hyperref false
+\papersize default
+\use_geometry false
+\use_package amsmath 1
+\use_package amssymb 1
+\use_package cancel 1
+\use_package esint 1
+\use_package mathdots 1
+\use_package mathtools 1
+\use_package mhchem 1
+\use_package stackrel 1
+\use_package stmaryrd 1
+\use_package undertilde 1
+\cite_engine basic
+\cite_engine_type default
+\biblio_style plain
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\justification true
+\use_refstyle 1
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\quotes_language english
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Title
+Tensor Operators Technical Note
+\end_layout
+
+\begin_layout Section
+Gated Recurrent Units
+\end_layout
+
+\begin_layout Standard
+Described in 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "Cho:2014ua"
+
+\end_inset
+
+:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+y=\left(1-z_{t}\right)h_{t-1}+z_{t}\tilde{h}_{t}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where
+\begin_inset Formula 
+\begin{eqnarray*}
+z & = & \sigma\left(W_{z}x+U_{z}h\right)\\
+\tilde{h} & = & \tanh\left(Wx+U(r\odot h)\right)\\
+r & = & \sigma\left(W_{r}x+Uh\right)
+\end{eqnarray*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Temporal convolution
+\end_layout
+
+\begin_layout Standard
+The convolution is defined by its kernel width 
+\begin_inset Formula $w$
+\end_inset
+
+ and its step size 
+\begin_inset Formula $s$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+We have a convolution tensor 
+\begin_inset Formula $W$
+\end_inset
+
+ of dimension 
+\begin_inset Formula $o\times wn$
+\end_inset
+
+ where 
+\begin_inset Formula $w$
+\end_inset
+
+ is the width and 
+\begin_inset Formula $n$
+\end_inset
+
+ is the size of each input vector.
+ 
+\end_layout
+
+\begin_layout Subsection
+Applied to a matrix
+\end_layout
+
+\begin_layout Standard
+A matrix 
+\begin_inset Formula $X$
+\end_inset
+
+ of dimension 
+\begin_inset Formula $p\times n$
+\end_inset
+
+ is given, with 
+\begin_inset Formula $p\ge w$
+\end_inset
+
+.
+ The linear transformation is applied to each subsequence of 
+\begin_inset Formula $w$
+\end_inset
+
+ vectors.
+ The number of outputs is given by 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+q=\left\lfloor \frac{p-w}{s}\right\rfloor +1
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The result is a matrix 
+\begin_inset Formula $Y$
+\end_inset
+
+ of dimension 
+\begin_inset Formula $q\times o$
+\end_inset
+
+ where
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+Y_{i\bullet}=X_{\left(i-1\right)s+1\dots\left(i-1\right)s+w,\bullet}^{T}\times_{2}W
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Applied to a tensor
+\end_layout
+
+\begin_layout Standard
+\begin_inset CommandInset bibtex
+LatexCommand bibtex
+bibfiles "tr"
+options "abbrv"
+
+\end_inset
+
+
+\end_layout
+
+\end_body
+\end_document
