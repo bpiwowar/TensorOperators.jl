@@ -39,7 +39,7 @@ function forward!(p::Parallel, input::Array)
 end
 
 
-ListBasedContainer = Union(Parallel, Sequence)
+ListBasedContainer = Union{Parallel, Sequence}
 
 function init!(m::ListBasedContainer)
     for submodule in m.list

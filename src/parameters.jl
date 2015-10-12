@@ -56,10 +56,11 @@ size(m::ArrayParameters) = size(m.values)
 const parametersMap = Dict{Type, Array{Symbol}}()
 
 function _parameters(layer::Layer)
-  return get!(parametersMap, typeof(layer)) do
+  t = typeof(layer)
+  return get!(parametersMap, t) do
     p = Any[]
     for field in fieldnames(layer)
-        if fieldtype(layer, field) <: Parameters
+        if fieldtype(t, field) <: Parameters
             push!(p, field)
         end
     end
@@ -67,6 +68,7 @@ function _parameters(layer::Layer)
   end
 end
 
+"""Returns the parameters of a given layer"""
 function parameters(m::Layer)
     function _it()
         for field in _parameters(m)
@@ -107,7 +109,7 @@ function linearize_parameters!{F<:Float, D<:Device}(d::D, ::Type{F}, m::Layer, c
   values = array(d, F, totalsize)
   gradient = array(d, F, totalsize)
 
-  offset::UInt = 0
+  offset::Int = 0
   for p in parameters(m)
     if typeof(p) <: ArrayParameters && !isnull(p.gradient)
       psize = length(p.values)

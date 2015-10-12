@@ -8,27 +8,27 @@ import Base: rand, randn!, rand!, zeros, push!, length, size
 
 # --- Devices and types
 
-typealias Float FloatingPoint
+typealias Float AbstractFloat
 
 abstract Device
 
-denseRealArray(::TypeVar) = Union(DenseArray{Float64}, DenseArray{Float32})
-denseRealArray(dim::Int) = Union(DenseArray{Float32,dim}, DenseArray{Float64, dim})
+denseRealArray(::TypeVar) = Union{DenseArray{Float64}, DenseArray{Float32}}
+denseRealArray(dim::Int) = Union{DenseArray{Float32,dim}, DenseArray{Float64, dim}}
 const DenseRealTensor = denseRealArray(TypeVar(:N))
 const DenseRealMatrix = denseRealArray(2)
 const DenseRealVector = denseRealArray(1)
 
 
-denseTensor(::TypeVar, F::TypeVar, N::Union(TypeVar,Int)) = DenseArray{F, N}
+denseTensor(::TypeVar, F::TypeVar, N::Union{TypeVar,Int}) = DenseArray{F, N}
 denseTensor{D<:Device}(::Type{D}, F, ::Int) =  error("Cannot compute type of dense matrix of ($D, $F)")
 
 denseMatrix(D, F) = denseTensor(D, F, 2)
 denseVector(D, F) = denseTensor(D, F, 1)
 
 denseRealMatrix(::TypeVar, ::TypeVar) = DenseRealMatrix
-denseRealMatrix{F<:FloatingPoint}(D, ::Type{F}) = denseMatrix(D, F)
+denseRealMatrix{F<:AbstractFloat}(D, ::Type{F}) = denseMatrix(D, F)
 denseRealVector(::TypeVar, ::TypeVar) = DenseRealVector
-denseRealVector{F<:FloatingPoint}(D, ::Type{F}) = denseVector(D, F)
+denseRealVector{F<:AbstractFloat}(D, ::Type{F}) = denseVector(D, F)
 
 const IntVector = Array{Int, 1}
 
@@ -56,14 +56,14 @@ zeros{F<:Float}(d::CPUDevice, ::Type{F}, dims::Int64...) = zeros(F, dims...)
 
 abstract Layer
 
-@doc doc"Computes the gradient wrt the parameters and the input. Returns the gradient wrt to the inputs" ->
+"""Computes the gradient wrt the parameters and the input. Returns the gradient wrt to the inputs"""
 function backward!(m::Layer, input, gradOutput, scale::Float64=1.)
     update_gradient!(m, input, gradOutput, scale)
     return compute_inputgradient!(m, input, gradOutput)
 end
 
 
-# Generic function for initializing the gradient
+""" Generic function for initializing the gradient """
 function init_gradient!(m::Layer)
     for v in parameters(m)
         if !isnull(v.gradient)
@@ -110,6 +110,5 @@ include("transfer.jl")
 
 # Costs
 include("cost.jl")
-
 
 end
